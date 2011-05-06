@@ -19,13 +19,6 @@
  *
  */
 
-/*
- * @TODO: Remove joomla framework methods and make it native for chunker only
- * like: JUtility::parseAttributes
- */
-
-defined('_JEXEC') or die;
-
 define('JSCSSCHUNKER_COMPRESSOR_DIR', dirname(__FILE__).DIRECTORY_SEPARATOR.'compressor');
 
 /*
@@ -73,6 +66,8 @@ class JsCssChunker
     'after'=> array('stylesheet'=>0, 'javascript'=>0)
   );
 
+  protected $_html = '';
+
   /**
    * Contructor Function for init class and set options
    *
@@ -114,11 +109,14 @@ class JsCssChunker
    * @access public
    * @static
    * @param $html HTML Content
-   * @params $parseMode Determine where parse the files (head, body, all, defaults head)
+   * @param $parseMode Determine where parse the files (head, body, all, defaults head)
+   * @param $autoApply Automaticly add all founded js and css files to the queue
    * @return array CSS and JS file list
    */
-  public static function parseRawHeader($html='', $parseMode='head')
+  public function parseRawHeader($html='', $parseMode='head', $autoApply=false)
   {
+    $html = $html ? $html : $this->_html;
+
     $filelist = array(
       'css' => array(),
       'js' => array()
@@ -169,14 +167,19 @@ class JsCssChunker
           $attributes = trim($attributes);
         }
 
-        $_attribs = JUtility::parseAttributes($attributes);
+        $_attribs = $this->parseAttributes($attributes);
         $_attribs['href'] = (isset($_attribs['href']) ? $_attribs['href'] : '');
         $_attribs['rel'] = (isset($_attribs['rel']) ? strtolower($_attribs['rel']) : '');
         $_attribs['type'] = (isset($_attribs['type']) ? strtolower($_attribs['type']) : '');
         $_attribs['media'] = (isset($_attribs['media']) ? strtolower($_attribs['media']) : '');
 
-        if($_attribs['rel']=='stylesheet' && $_attribs['href'] != '') {
+        if($_attribs['rel']=='stylesheet' && $_attribs['href'] != '')
+        {
           $filelist['css'][] = $_attribs;
+
+          if($autoApply) {
+            $this->addStylesheet($_attribs['href'], $_attribs['type'], $_attribs['media']);
+          }
         }
       }
     }
@@ -197,12 +200,17 @@ class JsCssChunker
           $attributes = trim($attributes);
         }
 
-        $_attribs = JUtility::parseAttributes($attributes);
+        $_attribs = $this->parseAttributes($attributes);
         $_attribs['src'] = (isset($_attribs['src']) ? $_attribs['src'] : '');
         $_attribs['type'] = (isset($_attribs['type']) ? strtolower($_attribs['type']) : '');
 
-        if($_attribs['src'] != '') {
+        if($_attribs['src'] != '')
+        {
           $filelist['js'][] = $_attribs;
+
+          if($autoApply) {
+            $this->addJavascript($_attribs['src'], $_attribs['type']);
+          }
         }
       }
     }
@@ -230,7 +238,8 @@ class JsCssChunker
    * @param $value Value to set for option $key
    * @return void
    */
-  public function setOption($key, $value) {
+  public function setOption($key, $value)
+  {
     $this->options[$key] = $value;
   }
 
@@ -543,9 +552,11 @@ class JsCssChunker
   /**
    * Strip Stylesheet Comments (consider css hacks)
    *
+   * @access protected
    * @param string $content Contents of Stylesheet/CSS
+   * @return String with striped CSS comments
    */
-  public function stripStylesheetComments($content='')
+  protected function stripStylesheetComments($content='')
   {
     // handle hacks before
     $content = str_replace('/**/', '[[HACK__IE_EMPTY_COMMENT]]', $content);
@@ -1002,6 +1013,35 @@ class JsCssChunker
   }
 
   /**
+   * Get the contents of a given URL or File
+   *
+   * @access public
+   * @param $url URL or File (local or external)
+   * @return string Loaded contents
+   */
+  public function loadHtml($url='')
+  {
+    $other = $url ? true : false;
+    $contents = '';
+
+    if(!$this->_html || $other) {
+      $url = trim($url ? $url : $this->baseUrl);
+
+      if($url != '') {
+        $contents = $this->getFileContents($url);
+
+        if(!$other) {
+          $this->_html = $contents;
+        }
+      }
+    } else {
+      $contents = $this->_html;
+    }
+
+    return $contents;
+  }
+
+  /**
    * Get the contents of specific file/url
    *
    * @access protected
@@ -1230,6 +1270,29 @@ class JsCssChunker
     }
 
     return curl_exec($ch);
+  }
+
+  /**
+   * Method to extract key/value pairs with xml style attributes
+   *
+   * @access private
+   * @param	string $str String with the xml style attributes
+   * @return array Array of extracted Key/Value pairs
+   */
+  private function parseAttributes($str)
+  {
+    $arr = array();
+
+    if (preg_match_all('/([\w:-]+)[\s]?=[\s]?"([^"]*)"/i', $str, $matches))
+    {
+      $count = count($matches[1]);
+
+      for ($i = 0; $i < $count; $i++) {
+        $arr[$matches[1][$i]] = $matches[2][$i];
+      }
+    }
+
+    return $arr;
   }
 
   /**
