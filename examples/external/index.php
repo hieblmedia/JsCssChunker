@@ -28,7 +28,7 @@ if(!$chunker->check()) {
 // set Options
 //$chunker->setOption('targetUrl', $targetUrl); // absolute or relative (/path1/path2/../../ also allowed for root correction)
 $chunker->setOption('logFilesize', true);
-// $chunker->setOption('javascriptCompress', true); // default false
+// $chunker->setOption('javascriptCompress', true); // default false (false does merge files without minify)
 // $chunker->setOption('javascriptCompressorClass', 'JSMinPlus'); // (JSMin, JSMinPlus, JavaScriptPacker) default 'JSMinPlus'
 // $chunker->setOption('httpAuth', array('user'=>'username', 'pass'=>'password')); // If httpAuth requried on local system, dot not set, it will be automaticly detected.
 
