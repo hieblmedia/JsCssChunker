@@ -5,13 +5,18 @@ define('DS', DIRECTORY_SEPARATOR);
 //////////////////////////////////
 
 
-
 // load dependencies
 require_once(dirname(dirname(dirname(__FILE__))).DS.'JsCssChunker'.DS.'chunker.php');
 
+
+// URL
+$url = 'http://www.hieblmedia.de';
+// $targetUrl = 'http://cdn.chunker.hieblmedia.net/_test/examples/';
+
+
 // get the chunker
 $chunker = new JsCssChunker(
-  'http://chunker.hieblmedia.net/_test/examples/',
+  $url,
   array(/* Options: for example here is using setOption */)
 );
 
@@ -21,7 +26,7 @@ if(!$chunker->check()) {
 }
 
 // set Options
-//$chunker->setOption('targetUrl', 'http://cdn.chunker.hieblmedia.net/_test/examples/'); // absolute or relative (/path1/path2/../../ also allowed for root correction)
+//$chunker->setOption('targetUrl', $targetUrl); // absolute or relative (/path1/path2/../../ also allowed for root correction)
 $chunker->setOption('logFilesize', true);
 // $chunker->setOption('javascriptCompress', true); // default false
 // $chunker->setOption('javascriptCompressorClass', 'JSMinPlus'); // (JSMin, JSMinPlus, JavaScriptPacker) default 'JSMinPlus'
