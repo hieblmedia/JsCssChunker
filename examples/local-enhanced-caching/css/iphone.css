@@ -1,0 +1,36 @@
+
+body{
+  -webkit-text-size-adjust:none;
+  font-family:Helvetica, Arial, Verdana, sans-serif;
+  padding-left:5px;
+  padding-right:5px;
+}
+
+.page_margins { min-width: 100%; max-width: 100%; width: 100%; }
+
+#main div {
+  clear:both!important;
+  display:block!important;
+  width:100%!important;
+  float:none!important;
+  margin:0!important;
+  padding:0!important;
+}
+
+
+#nav{
+  border:1px solid #ccc;
+  padding:5px;
+  -webkit-border-radius:5px;
+}
+#nav li{
+  margin:0!important;
+}
+#nav li a{
+  display:block;
+}
+
+img{
+  max-width:100%;
+  height:auto;
+}

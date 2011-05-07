@@ -10,8 +10,8 @@ require_once(dirname(dirname(dirname(__FILE__))).DS.'JsCssChunker'.DS.'chunker.p
 
 
 // URL
-$url = 'http://www.hieblmedia.de';
-// $targetUrl = 'http://cdn.chunker.hieblmedia.net/_test/examples/';
+$url = 'http://www.example.tld';
+$targetUrl = '/cache/';
 
 
 // get the chunker
@@ -26,7 +26,9 @@ if(!$chunker->check()) {
 }
 
 // set Options
-//$chunker->setOption('targetUrl', $targetUrl); // absolute or relative (/path1/path2/../../ also allowed for root correction)
+if(!empty($targetUrl)) {
+  $chunker->setOption('targetUrl', $targetUrl); // absolute or relative (/path1/path2/../../ also allowed for root correction)
+}
 $chunker->setOption('logFilesize', true);
 // $chunker->setOption('javascriptCompress', true); // default false (false does merge files without minify)
 // $chunker->setOption('javascriptCompressorClass', 'JSMinPlus'); // (JSMin, JSMinPlus, JavaScriptPacker) default 'JSMinPlus'
@@ -43,7 +45,14 @@ $chunker->parseRawHeader('', 'head', true);
 
 
 // Simple Caching
-$cachPath = dirname(__FILE__).DS.'cache';
+$cachePath = dirname(__FILE__).DS.'cache';
+$caching = true;
+
+/* Example to get the right cache path to save on local filesystem */
+   // $savePath = $chunker->getTargetUrlSavePath();
+   // $cachePath = $chunker->cleanPath(str_replace($url, dirname(__FILE__), $savePath), DS);
+
+
 
 // CSS
 $cssBuffer = '';
@@ -51,9 +60,9 @@ $cssHash = $chunker->getStylesheetHash();
 $cssFileFromCache = false;
 
 if($cssHash) {
-  $cssCacheFile = $cachPath.DS.$cssHash.'.css';
+  $cssCacheFile = $cachePath.DS.$cssHash.'.css';
 
-  if(file_exists($cssCacheFile))
+  if(file_exists($cssCacheFile) && $caching)
   {
     $cssBuffer = file_get_contents($cssCacheFile);
     $cssFileFromCache = true;
@@ -75,9 +84,9 @@ $jsHash = $chunker->getJavascriptHash();
 $jsFileFromCache = false;
 
 if($jsHash) {
-  $jsCacheFile = $cachPath.DS.$jsHash.'.js';
+  $jsCacheFile = $cachePath.DS.$jsHash.'.js';
 
-  if(file_exists($jsCacheFile))
+  if(file_exists($jsCacheFile) && $caching)
   {
     $jsBuffer = file_get_contents($jsCacheFile);
     $jsFileFromCache = true;
@@ -92,6 +101,10 @@ if($jsHash) {
     }
   }
 }
+?>
+  <h3>Chunker Log</h3>
+  <pre style="overflow:auto; background:#000; color:#fff; padding:5px; text-align:left; margin:10px 0;"><?php echo htmlentities(print_r($chunker->getLogs(false), true)); ?></pre>
+<?php
 
 if($cssBuffer) {
   // To something
@@ -112,7 +125,7 @@ if($jsBuffer) {
   echo '<h2>No Javascript found or applied</h2>';
 }
 
-
+?>
 
 
 

@@ -30,6 +30,7 @@ define('JSCSSCHUNKER_COMPRESSOR_DIR', dirname(__FILE__).DIRECTORY_SEPARATOR.'com
 class JsCssChunker
 {
   protected $baseUrl = '';
+  protected $autoTarget = false;
 
   protected $options = array(
     'timeout' => 5,
@@ -61,10 +62,7 @@ class JsCssChunker
   protected $stylesheetFileTree = array();
   protected $javascriptFileTree = array();
 
-  public $sizeLog = array(
-    'before'=> array('stylesheet'=>0, 'javascript'=>0),
-    'after'=> array('stylesheet'=>0, 'javascript'=>0)
-  );
+  public $sizeLog = false;
 
   protected $_html = '';
 
@@ -72,7 +70,9 @@ class JsCssChunker
    * Contructor Function for init class and set options
    *
    * @access public
-   * @param $baseUrl The parent url of files from relative
+   * @param $baseUrl The parent url of files from relative,
+   *                 Make sure to use only directory URLs
+   *                 (absolute REQUEST_URI without Script filename)
    * @param $options Options {@link self->options}
    * @return mixed The option value
    */
@@ -87,10 +87,6 @@ class JsCssChunker
       }
     }
 
-    if('' == $this->getOption('targetUrl')) {
-      $this->options['targetUrl'] = $this->baseUrl;
-    }
-
     $state = self::check();
 
     if($state==false) {
@@ -101,6 +97,8 @@ class JsCssChunker
     $safeMode = strtolower(ini_get('safe_mode'));
     $this->_phpSafeMode = (($safeMode=='0' || $safeMode=='off') ? false : true);
     $this->_phpOpenBasedir = (ini_get('open_basedir') == '' ? false : true);
+
+    $this->validateOptions();
   }
 
   /**
@@ -241,6 +239,27 @@ class JsCssChunker
   public function setOption($key, $value)
   {
     $this->options[$key] = $value;
+    $this->validateOptions();
+  }
+
+  /**
+   * Method to validate options
+   *
+   * @access protected
+   * @return void
+   */
+  protected function validateOptions()
+  {
+    if($this->options['targetUrl'] == '') {
+      $this->options['targetUrl'] = $this->baseUrl;
+      $this->autoTarget = true;
+    } else {
+      $this->autoTarget = false;
+    }
+
+    if(substr($this->options['targetUrl'], -1, 1) != '/') {
+      $this->options['targetUrl'] .= '/';
+    }
   }
 
   /**
@@ -371,6 +390,19 @@ class JsCssChunker
   public function chunkStylesheets()
   {
     $this->mergeStylesheets();
+
+    $savePath = $this->getTargetUrlSavePath();
+    if($savePath) {
+      $this->addLog(
+        "\n".
+        '!! Important !!: The Stylesheet must be callable from this path:'.
+        "\n\t\t\t -- Folder:      ".
+        $savePath.
+        "\n\t\t\t -- File (e.g.): ".$savePath.$this->getStylesheetHash().'.css'.
+        "\n"
+      );
+
+    }
 
     return $this->_stylesheetBuffer;
   }
@@ -732,10 +764,23 @@ class JsCssChunker
            * and within contents of file not defined
            * then do include it.
            */
-          if((strpos($icont, '@media')!==false) && ($media = $relpathsMedia[$key])) {
-            $icont = '@media '.$media.' { '.$icont.' }';
-          } elseif(strpos($icont, '@media')===false) {
-            $icont = '@media all { '.$icont.' }'; // add media all if nothing set
+
+          $importMedia = trim($relpathsMedia[$key]);
+
+          // add media all no media set
+          if(strpos($icont, '@media')===false)
+          {
+            // add media query from @import if available or media all as fallback
+            if($importMedia) {
+              $icont = '@media '.$importMedia.' { '.$icont.' }';
+            } else {
+              $icont = '@media all { '.$icont.' }';
+            }
+          }
+          elseif($importMedia)
+          {
+             // add media query from @import additional if available
+             $icont = str_replace('@media ', '@media '.$importMedia.', ', $icont);
           }
         }
 
@@ -766,12 +811,12 @@ class JsCssChunker
   /**
    * Method to replace url paths in css rules in merged content
    *
-   * @access private
+   * @access public
    * @param string $content CSS content
    * @param string $path of file to replace
    * @return string $content return content with replaced url([new_path])
    */
-  private function _replaceCSSPaths($content, $path)
+  public function _replaceCSSPaths($content, $path)
   {
     $path = $this->cleanPath($path);
 
@@ -809,15 +854,94 @@ class JsCssChunker
   private function _replaceCSSPaths_Callback($matches)
   {
     $url = $this->pathscope.$matches[3];
-
     $targetUrl = $this->getOption('targetUrl');
 
-    if($this->baseUrl == $targetUrl) {
-      $url = preg_replace('#^'.$targetUrl.'#', '/', $url);
-    } else {
-      $url = preg_replace('#^'.$this->baseUrl.'#', $targetUrl, $url);
+    $baseUrlCompare = $this->baseUrl;
+    if(substr($baseUrlCompare, -1, 1) != '/') {
+      $baseUrlCompare .= '/';
     }
 
+    $holdAbsoluteUrl = false;
+    if(preg_match('#^(http|https)://#Uis', $url))
+    {
+      $u1 = parse_url($this->baseUrl);
+      $u2 = parse_url($url);
+
+      if(!empty($u1['host']) && !empty($u2['host']) && $u1['host'] != $u2['host']) {
+        $holdAbsoluteUrl = true;
+      }
+    }
+
+    if(!$holdAbsoluteUrl)
+    {
+      if($baseUrlCompare == $targetUrl || $this->autoTarget)
+      {
+        $url = preg_replace('#^'.$targetUrl.'#', '/', $url);
+      }
+      else
+      {
+        $targetTmp = explode('://', $targetUrl);
+        $targetTmp = isset($targetTmp[1]) ? $targetTmp[1] : $targetTmp[0];
+        $targetTmp = explode('/', preg_replace('#/$#', '', $targetTmp));
+
+        $scopeTmp = explode('://', $this->pathscope);
+        $scheme = isset($scopeTmp[0]) ? $scopeTmp[0].'://' : '';
+        $scopeTmp = isset($scopeTmp[1]) ? $scopeTmp[1] : $scopeTmp[0];
+        $scopeTmp = explode('/', preg_replace('#/$#', '', $scopeTmp));
+
+        $baseTmp = explode('://', $this->baseUrl);
+        $baseTmp = isset($baseTmp[1]) ? $baseTmp[1] : $baseTmp[0];
+        $baseTmp = explode('/', preg_replace('#/$#', '', $baseTmp));
+
+        $lastIndex = 0;
+        foreach($targetTmp as $k=>$v)
+        {
+          if(isset($scopeTmp[$k]) && $v==$scopeTmp[$k]) {
+            $lastIndex = $k;
+          }
+        }
+        $parentCount = (count($scopeTmp)-1) - $lastIndex;
+
+        // base to target convert with additional relative placeholders (if internal)
+        if($parentCount > 0 && $lastIndex > 0 && $lastIndex >= (count($baseTmp)-1))
+        {
+          // scope is within base directory
+          $url = $this->pathscope.str_repeat('../', $parentCount).$matches[3];
+          $url = preg_replace('#^'.$this->baseUrl.'#', $targetUrl, $url);
+        }
+        else
+        {
+          // scope is outside base directory
+          $diff = array_slice($targetTmp, $lastIndex+1);
+
+          if(count($diff))
+          {
+            $a = array_slice($scopeTmp, 0, $lastIndex+1);
+            $b = array_slice($scopeTmp, $lastIndex+1);
+
+            if($lastIndex > 0) {
+              $diffPath = '/'.implode('/', $diff).str_repeat('/..', count($diff));
+            } else {
+              $diffPath = str_repeat('/..', count($diff));
+            }
+            $url = $scheme.implode('/', $a).$diffPath.($b ? '/'.implode('/', $b) : '').'/'.$matches[3];
+
+            if($pos = strpos($url, $targetUrl)) {
+              // in most cases relative target
+              $url = substr($url, $pos);
+            } elseif($lastIndex > 0) {
+              // in most cases an absolute target (CDN Host)
+              $diffPath = $targetUrl.str_repeat('../', count($diff));
+              $url = $diffPath.($b ? implode('/', $b) : '').'/'.$matches[3];
+            }
+          }
+        }
+
+        $url = preg_replace('#^'.$this->baseUrl.'#', '', $url);
+      }
+    }
+
+    // shrink URL
     $url = $this->getRealpath($url);
 
     // Full SSL (https) support, if URL absolute
@@ -891,7 +1015,8 @@ class JsCssChunker
     {
       if ($dir=='' || $dir=='.') { continue; }
 
-      if ($dir=='..' && $i>0 && end($tmp)!='..') {
+      //if ($dir=='..' && $i>0 && end($tmp)!='..') {
+      if ($dir=='..' && $i>0 && end($tmp)!='..' && !empty($tmp)) {
         array_pop($tmp);
       } else {
         $tmp[]= $dir;
@@ -902,6 +1027,44 @@ class JsCssChunker
 
     if($scheme) {
       $path = $scheme.'://'.$path;
+    }
+
+    return $path;
+  }
+
+  /**
+   * Get the absolute URL Path where the stylesheet must be callable
+   *
+   * @access public
+   * @return string Absolute URL save path
+   */
+  public function getTargetUrlSavePath()
+  {
+    $path = '';
+
+    $baseUrl = $this->baseUrl;
+    $targetUrl = $this->getOption('targetUrl');
+
+    if($this->autoTarget)
+    {
+      $path = $baseUrl;
+    } else {
+      if(preg_match('#^(http|https)://#Uis', $targetUrl))
+      {
+        $path = $targetUrl;
+      }
+      else
+      {
+        $basePath = parse_url($baseUrl, PHP_URL_PATH);
+        $targetUrl = str_replace($basePath, '', $targetUrl);
+        $path = $baseUrl.'/'.$targetUrl;
+      }
+    }
+
+    $path = $this->getRealpath($path);
+
+    if(substr($path, -1, 1) != '/') {
+      $path .= '/';
     }
 
     return $path;
@@ -949,6 +1112,44 @@ class JsCssChunker
   }
 
   /**
+   * Check directores based on a compared file of modifications
+   *
+   * @access public
+   * @param array $dirs Absolute directory paths on local filesystem
+   * @param string $comparefile Filename to compare with $dirs
+   * @param string preg_match filter for files (defaults [.css|.js]$)
+   * @return mixed (timestamp)Filetime or (bool)false on fail
+   */
+  public function hasFoldersModifications($dirs, $compareFile, $filter='[.css|.js]$')
+  {
+    if(!is_array($dirs)) {
+      $dirs = array($dirs);
+    }
+
+    $lastModified = 0;
+
+    foreach($dirs as $_dir)
+    {
+      $lm = $this->getLastModifiedFileByFolder($_dir, $filter);
+
+      if($lm>$lastModified) {
+        $lastModified = $lm;
+      }
+    }
+
+    if($lastModified)
+    {
+      $filetime = @filemtime($compareFile);
+
+      if($filetime && $lastModified > $filetime) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
    * Get LastModified File by local path(dir)
    *
    * @access public
@@ -958,6 +1159,9 @@ class JsCssChunker
    */
   public function getLastModifiedFileByFolder($path, $filter='[.css|.js]$')
   {
+    // workaround to fix the path (double-slash, dot-notation, etc.)
+    $path = dirname($path);
+
     // check dir exists on local filesystem
     if(!is_dir($path)) {
       return false;
@@ -1302,12 +1506,19 @@ class JsCssChunker
    * @param string $str Content to determine the size
    * @param string $type Determine the Type of the Content (grouping like js or css)
    * @param string $timeline Determine an upper group (like before or after)
-   * @return Size of Content (multibyte if available or strlen)
+   * @return mixed Size of Chunked contents (multibyte if available or strlen)
    */
   protected function logFileSize($str, $type, $timeline)
   {
     if(!$this->getOption('logFilesize', false)) {
       return;
+    }
+
+    if($this->sizeLog == false) {
+      $this->sizeLog = array(
+        'before'=> array('stylesheet'=>0, 'javascript'=>0),
+        'after'=> array('stylesheet'=>0, 'javascript'=>0)
+      );
     }
 
     if(function_exists('mb_strlen'))
