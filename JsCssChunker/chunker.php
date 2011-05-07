@@ -945,7 +945,7 @@ class JsCssChunker
     $url = $this->getRealpath($url);
 
     // Full SSL (https) support, if URL absolute
-    // Note: If the target file external the host needs an valid certificate
+    // Note: If the target file external the host needs an valid SSL certificate
     if(preg_match('#^https://#Uis', $this->baseUrl)) {
       $url = preg_replace('#http://#Uis', 'https://', $url);
     }
