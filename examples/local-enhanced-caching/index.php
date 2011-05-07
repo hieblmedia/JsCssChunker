@@ -38,14 +38,16 @@ $cacheFolderName = 'cache';
 $targetUrl =  preg_replace('#'.basename(__FILE__).'$#Uis', '', $_SERVER["REQUEST_URI"]).$cacheFolderName.'/'; // relative
 //$targetUrl = $pageURL.$cacheFolderName.'/'; // or absolute (for example on a CDN host)
 /////////// Chunker Part ///////////////
-$caching = false;
+$caching = true;
 
     // get the chunker
     $chunker = new JsCssChunker(
       $pageURLRel, // !Important: Use only directory Urls (Absolute REQUEST_URI without script filename)
       array(
         'targetUrl' => $targetUrl, // (optional: absolute or relative)
-        'logFilesize' => true // for performance reasons its recommended to enable this only for debugging
+        'logFilesize' => true, // for performance reasons its recommended to enable this only for debugging,
+        'javascriptCompress' => true, // default false
+        'javascriptCompressorClass' => 'JSMinPlus' // (JSMin, JSMinPlus, JavaScriptPacker) default 'JSMinPlus'
       )
     );
 

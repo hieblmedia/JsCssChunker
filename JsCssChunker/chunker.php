@@ -1139,6 +1139,7 @@ class JsCssChunker
 
     if($lastModified)
     {
+      $compareFile = $this->cleanPath($compareFile);
       $filetime = @filemtime($compareFile);
 
       if($filetime && $lastModified > $filetime) {
@@ -1160,7 +1161,7 @@ class JsCssChunker
   public function getLastModifiedFileByFolder($path, $filter='[.css|.js]$')
   {
     // workaround to fix the path (double-slash, dot-notation, etc.)
-    $path = dirname($path);
+    $path = dirname($this->cleanPath($path).'/.');
 
     // check dir exists on local filesystem
     if(!is_dir($path)) {
