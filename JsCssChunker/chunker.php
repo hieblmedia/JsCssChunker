@@ -880,34 +880,33 @@ class JsCssChunker
       }
       else
       {
-        $targetTmp = explode('://', $targetUrl);
-        $targetTmp = isset($targetTmp[1]) ? $targetTmp[1] : $targetTmp[0];
+        $targetTmp = parse_url($targetUrl, PHP_URL_PATH);
         $targetTmp = explode('/', preg_replace('#/$#', '', $targetTmp));
 
-        $scopeTmp = explode('://', $this->pathscope);
-        $scheme = isset($scopeTmp[0]) ? $scopeTmp[0].'://' : '';
-        $scopeTmp = isset($scopeTmp[1]) ? $scopeTmp[1] : $scopeTmp[0];
+        $scheme = parse_url($this->pathscope, PHP_URL_SCHEME);
+        $host = parse_url($this->pathscope, PHP_URL_HOST);
+        $scopeTmp = parse_url($this->pathscope, PHP_URL_PATH);
         $scopeTmp = explode('/', preg_replace('#/$#', '', $scopeTmp));
 
-        $baseTmp = explode('://', $this->baseUrl);
-        $baseTmp = isset($baseTmp[1]) ? $baseTmp[1] : $baseTmp[0];
+        $baseTmp = parse_url($this->baseUrl, PHP_URL_PATH);
         $baseTmp = explode('/', preg_replace('#/$#', '', $baseTmp));
 
         $lastIndex = 0;
         foreach($targetTmp as $k=>$v)
         {
-          if(isset($scopeTmp[$k]) && $v==$scopeTmp[$k]) {
+          if(isset($baseTmp[$k]) && $v==$baseTmp[$k]) {
             $lastIndex = $k;
           }
         }
-        $parentCount = (count($scopeTmp)-1) - $lastIndex;
+        $parentCount = (count($targetTmp)-1) - $lastIndex;
 
         // base to target convert with additional relative placeholders (if internal)
         if($parentCount > 0 && $lastIndex > 0 && $lastIndex >= (count($baseTmp)-1))
         {
           // scope is within base directory
-          $url = $this->pathscope.str_repeat('../', $parentCount).$matches[3];
-          $url = preg_replace('#^'.$this->baseUrl.'#', $targetUrl, $url);
+          //$url = $this->pathscope.str_repeat('../', $parentCount).$matches[3];
+          $url = $this->pathscope.$matches[3];
+          $url = preg_replace('#^'.$this->baseUrl.'#', $targetUrl.str_repeat('../', $parentCount), $url);
         }
         else
         {
@@ -924,7 +923,8 @@ class JsCssChunker
             } else {
               $diffPath = str_repeat('/..', count($diff));
             }
-            $url = $scheme.implode('/', $a).$diffPath.($b ? '/'.implode('/', $b) : '').'/'.$matches[3];
+
+            $url = $scheme.'://'.$host.implode('/', $a).$diffPath.($b ? '/'.implode('/', $b) : '').'/'.$matches[3];
 
             if($pos = strpos($url, $targetUrl)) {
               // in most cases relative target
@@ -937,12 +937,17 @@ class JsCssChunker
           }
         }
 
-        $url = preg_replace('#^'.$this->baseUrl.'#', '', $url);
+        if(!parse_url($targetUrl, PHP_URL_HOST)) {
+          $url = preg_replace('#^'.$this->baseUrl.'#', '', $url);
+        } else {
+          $url = preg_replace('#^'.$this->baseUrl.'#', $targetUrl, $url);
+        }
       }
     }
 
     // shrink URL
-    $url = $this->getRealpath($url);
+    $url = $this->cleanPath($url);
+    // $url = $this->getRealpath($url);
 
     // Full SSL (https) support, if URL absolute
     // Note: If the target file external the host needs an valid SSL certificate
@@ -995,8 +1000,6 @@ class JsCssChunker
    */
   private function getRealpath($path='')
   {
-    $path = trim($path);
-
     if(!$path) { return; }
 
     $origPath = $path;

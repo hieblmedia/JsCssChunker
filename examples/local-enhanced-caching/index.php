@@ -34,9 +34,9 @@ if (@$_SERVER["SERVER_PORT"] != "80") {
 $pageURLRel = preg_replace('#'.basename(__FILE__).'$#Uis', '', $pageURL);
 
 
-$cacheFolderName = 'cache';
-$targetUrl =  preg_replace('#'.basename(__FILE__).'$#Uis', '', $_SERVER["REQUEST_URI"]).$cacheFolderName.'/'; // relative
-//$targetUrl = $pageURL.$cacheFolderName.'/'; // or absolute (for example on a CDN host)
+$cacheFolderName = 'cache'; // ! without leading and trailing slash
+$targetUrl =  preg_replace('#'.basename(__FILE__).'$#Uis', '', $_SERVER["REQUEST_URI"]).($cacheFolderName ? $cacheFolderName.'/' : ''); // relative
+
 /////////// Chunker Part ///////////////
 $caching = true;
 
