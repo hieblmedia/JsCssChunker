@@ -23,9 +23,6 @@ define('JSCSSCHUNKER_COMPRESSOR_DIR', dirname(__FILE__).DIRECTORY_SEPARATOR.'com
 
 /*
  * Class to minify, merge and compress stylesheet and javascript files
- *
- * @link http://chunker.hieblmedia.com
- * @package JsCssChunker
  */
 class JsCssChunker
 {
