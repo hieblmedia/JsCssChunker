@@ -1566,10 +1566,11 @@ class JsCssChunker
    *
    * @access public
    * @param string $msg Message
-   * @return void
+   * @return self
    */
   public function addLog($msg) {
     array_push($this->_log, htmlspecialchars($msg));
+    return $this;
   }
 
   /**
@@ -1597,10 +1598,11 @@ class JsCssChunker
    *
    * @access public
    * @param string $msg Message
-   * @return void
+   * @return self
    */
   public function addError($msg) {
     array_push($this->_error, htmlspecialchars($msg));
+    return $this;
   }
 
   /**
