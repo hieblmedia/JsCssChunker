@@ -920,12 +920,12 @@ class JsCssChunker
   /**
    * Method to replace url paths in css rules in merged content
    *
-   * @access public
+   * @access protected
    * @param string $content CSS content
    * @param string $path of file to replace
    * @return string $content return content with replaced url([new_path])
    */
-  public function _replaceCSSPaths($content, $path)
+  protected function _replaceCSSPaths($content, $path)
   {
     $path = $this->cleanPath($path);
 
@@ -1027,6 +1027,7 @@ class JsCssChunker
 
   /**
    * Strip and replace additional / or \ in a path
+   * Removing relative dot notations also like the php realpath function
    *
    * @access public
    * @param string $ds Directory seperator
