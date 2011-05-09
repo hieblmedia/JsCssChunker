@@ -197,6 +197,9 @@ $caching = true;
   </ul>
   <div id="chunker-toolbar">
     <div id="toolbar-contents" class="clearfix" style="display:none;">
+      <h3>Chunker Errors</h3>
+      <pre style="background:transparent; color:#fff; padding:5px; text-align:left;"><?php echo htmlentities(print_r($chunker->getErrors(false), true)); ?></pre>
+
       <h3>Chunker Log</h3>
       <pre style="background:transparent; color:#fff; padding:5px; text-align:left;"><?php echo htmlentities(print_r($chunker->getLogs(false), true)); ?></pre>
       <?php if($chunker->getOption('logFilesize') && $chunker->sizeLog) : ?>

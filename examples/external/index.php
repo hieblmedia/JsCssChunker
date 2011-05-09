@@ -10,13 +10,13 @@ require_once(dirname(dirname(dirname(__FILE__))).DS.'JsCssChunker'.DS.'chunker.p
 
 
 // URL
-$url = 'http://www.example.tld';
-$targetUrl = '/cache/';
+$pageUrl = 'http://chunker.hieblmedia.net/_test/examples/test/';
+$targetUrl = 'http://chunker.hieblmedia.de/_test/examples/test/cache/';
 
 
 // get the chunker
 $chunker = new JsCssChunker(
-  $url,
+  $pageUrl,
   array(/* Options: for example here is using setOption */)
 );
 
@@ -29,35 +29,32 @@ if(!$chunker->check()) {
 if(!empty($targetUrl)) {
   $chunker->setOption('targetUrl', $targetUrl); // absolute or relative (/path1/path2/../../ also allowed for root correction)
 }
+
 $chunker->setOption('logFilesize', true);
 // $chunker->setOption('javascriptCompress', true); // default false (false does merge files without minify)
 // $chunker->setOption('javascriptCompressorClass', 'JSMinPlus'); // (JSMin, JSMinPlus, JavaScriptPacker) default 'JSMinPlus'
 // $chunker->setOption('httpAuth', array('user'=>'username', 'pass'=>'password')); // If httpAuth requried on local system, dot not set, it will be automaticly detected.
 
 
-// load html
-$chunker->loadHtml();
-// parse html head and auto apply all js and css files
-$chunker->parseRawHeader('', 'head', true);
-
-
-
-
+// load html from pageUrl, parse html head and auto apply all js and css files
+$chunker->parseRawHeader('head', true);
 
 // Simple Caching
 $cachePath = dirname(__FILE__).DS.'cache';
 $caching = true;
 
 /* Example to get the right cache path to save on local filesystem */
-   // $savePath = $chunker->getTargetUrlSavePath();
-   // $cachePath = $chunker->cleanPath(str_replace($url, dirname(__FILE__), $savePath), DS);
-
+   // $savePath = $chunker->getTargetUrlSavePath(); // absolute url
+   // // $savePath = $chunker->getTargetUrlSavePath(); // relative path from root of pageUrl
+   // $cachePath = $chunker->cleanPath(str_replace($pageUrl, dirname(__FILE__), $savePath), DS);
 
 
 // CSS
 $cssBuffer = '';
 $cssHash = $chunker->getStylesheetHash();
 $cssFileFromCache = false;
+
+$cssBuffer = $chunker->chunkStylesheets();
 
 if($cssHash) {
   $cssCacheFile = $cachePath.DS.$cssHash.'.css';
@@ -101,7 +98,11 @@ if($jsHash) {
     }
   }
 }
+
 ?>
+  <h3>Chunker Errors</h3>
+  <pre style="overflow:auto; background:#000; color:#fff; padding:5px; text-align:left; margin:10px 0;"><?php echo htmlentities(print_r($chunker->getErrors(false), true)); ?></pre>
+
   <h3>Chunker Log</h3>
   <pre style="overflow:auto; background:#000; color:#fff; padding:5px; text-align:left; margin:10px 0;"><?php echo htmlentities(print_r($chunker->getLogs(false), true)); ?></pre>
 <?php
