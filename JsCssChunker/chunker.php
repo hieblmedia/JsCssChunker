@@ -102,7 +102,6 @@ class JsCssChunker
    * Method to parse the <head /> from the HTML document
    *
    * @access public
-   * @static
    * @param string $parseMode Determine where parse the files (head, body, all, defaults head)
    * @param boolean $autoApply Automaticly add all founded js and css files to the queue
    * @param string $forceHtml Optional HTML Content to Parse (leave empty to use the pageUrl Contents)

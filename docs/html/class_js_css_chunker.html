@@ -81,7 +81,6 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <div class="header">
   <div class="summary">
 <a href="#pub-methods">Public Member Functions</a> &#124;
-<a href="#pub-static-methods">Static Public Member Functions</a> &#124;
 <a href="#pub-attribs">Data Fields</a> &#124;
 <a href="#pro-methods">Protected Member Functions</a> &#124;
 <a href="#pro-attribs">Protected Attributes</a>  </div>
@@ -93,6 +92,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <tr><td colspan="2"><h2><a name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_js_css_chunker.html#ac086f7147441cc8347f8a760eb770101">__construct</a> ($pageUrl, $options=array())</td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_js_css_chunker.html#ac32c20b2f951ab2438e316fe389e75f7">parseRawHeader</a> ($parseMode='head', $autoApply=false, $forceHtml='')</td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_js_css_chunker.html#acb96f17aa6285ea00daff20ca5f1c93c">getOption</a> ($key, $def=null)</td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_js_css_chunker.html#a929e8f404dc73d92009451a5ed013002">setOption</a> ($key, $value)</td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_js_css_chunker.html#aa9295fea2a4cdc642f94381f251c9f16">addStylesheet</a> ($file, $type='text/css', $media='all')</td></tr>
@@ -114,9 +114,6 @@ Public Member Functions</h2></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_js_css_chunker.html#a24af374e9c031780e6d9706026be5051">getStylesheetFileTree</a> ()</td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_js_css_chunker.html#a61406be3290066d74f435f617cd4897b">getJavascriptFileTree</a> ()</td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_js_css_chunker.html#ad92c14b6c86304d3f1fb86b2936d3408">getProperties</a> ()</td></tr>
-<tr><td colspan="2"><h2><a name="pub-static-methods"></a>
-Static Public Member Functions</h2></td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_js_css_chunker.html#ac32c20b2f951ab2438e316fe389e75f7">parseRawHeader</a> ($parseMode='head', $autoApply=false, $forceHtml='')</td></tr>
 <tr><td colspan="2"><h2><a name="pub-attribs"></a>
 Data Fields</h2></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a0b79a23bdabea1ec46ecb0842f0962f2"></a><!-- doxytag: member="JsCssChunker::$sizeLog" ref="a0b79a23bdabea1ec46ecb0842f0962f2" args="" -->
@@ -246,7 +243,7 @@ Protected Attributes</h2></td></tr>
 <p><p>Search for "/(:.*)url\(([\'"]?)(?![a-z]+:)([^\'")]+)[\'"]?\)?/i" The : at first as shorthand to exclude the  rule in stylesheets Does IGNORE extenal files like <a href="http://,">http://,</a> <a href="ftp://...">ftp://...</a> Only relative urls would by replaced</p>
 </p>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l00928">928</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l00927">927</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -274,7 +271,7 @@ Protected Attributes</h2></td></tr>
 </dl>
 <dl class="return"><dt><b>Returns:</b></dt><dd>self </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l01604">1604</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l01603">1603</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -313,7 +310,7 @@ Protected Attributes</h2></td></tr>
 </dl>
 <dl class="return"><dt><b>Returns:</b></dt><dd>self </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l00399">399</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l00398">398</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -341,7 +338,7 @@ Protected Attributes</h2></td></tr>
 </dl>
 <dl class="return"><dt><b>Returns:</b></dt><dd>self </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l01572">1572</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l01571">1571</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -387,7 +384,7 @@ Protected Attributes</h2></td></tr>
 </dl>
 <dl class="return"><dt><b>Returns:</b></dt><dd>self </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l00373">373</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l00372">372</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -408,7 +405,7 @@ Protected Attributes</h2></td></tr>
 <p>public </p>
 <dl class="return"><dt><b>Returns:</b></dt><dd>boolean Can chunk </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l01120">1120</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l01119">1119</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -429,7 +426,7 @@ Protected Attributes</h2></td></tr>
 <p>public </p>
 <dl class="return"><dt><b>Returns:</b></dt><dd>string Chunked content </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l00523">523</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l00522">522</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -450,7 +447,7 @@ Protected Attributes</h2></td></tr>
 <p>public </p>
 <dl class="return"><dt><b>Returns:</b></dt><dd>string Chunked content </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l00497">497</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l00496">496</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -488,7 +485,7 @@ Protected Attributes</h2></td></tr>
 </dl>
 <dl class="return"><dt><b>Returns:</b></dt><dd>The clean path </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l01036">1036</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l01035">1035</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -527,7 +524,7 @@ Protected Attributes</h2></td></tr>
 </dl>
 <dl class="return"><dt><b>Returns:</b></dt><dd>Contents of curl_exec </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l01440">1440</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l01439">1439</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -554,7 +551,7 @@ Protected Attributes</h2></td></tr>
 </dl>
 <dl class="return"><dt><b>Returns:</b></dt><dd>array or string of Error(s) </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l01616">1616</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l01615">1615</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -582,7 +579,7 @@ Protected Attributes</h2></td></tr>
 </dl>
 <dl class="return"><dt><b>Returns:</b></dt><dd>string Contents from File </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l01268">1268</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l01267">1267</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -610,7 +607,7 @@ Protected Attributes</h2></td></tr>
 </dl>
 <dl class="return"><dt><b>Returns:</b></dt><dd>string Full aboslute URL </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l00793">793</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l00792">792</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -631,7 +628,7 @@ Protected Attributes</h2></td></tr>
 <p>public </p>
 <dl class="return"><dt><b>Returns:</b></dt><dd>Array of Files </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l01646">1646</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l01645">1645</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -659,7 +656,7 @@ Protected Attributes</h2></td></tr>
 </dl>
 <dl class="return"><dt><b>Returns:</b></dt><dd>mixed Hash value or false on fail </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l00463">463</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l00462">462</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -698,7 +695,7 @@ Protected Attributes</h2></td></tr>
 </dl>
 <dl class="return"><dt><b>Returns:</b></dt><dd>mixed (timestamp)Filetime or (bool)false on fail </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l01202">1202</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l01201">1201</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -725,7 +722,7 @@ Protected Attributes</h2></td></tr>
 </dl>
 <dl class="return"><dt><b>Returns:</b></dt><dd>array or string of Log Entrie(s) </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l01584">1584</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l01583">1583</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -764,7 +761,7 @@ Protected Attributes</h2></td></tr>
 </dl>
 <dl class="return"><dt><b>Returns:</b></dt><dd>mixed The option value </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l00291">291</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l00290">290</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -785,7 +782,7 @@ Protected Attributes</h2></td></tr>
 <p>public </p>
 <dl class="return"><dt><b>Returns:</b></dt><dd>get_object_vars() </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l01657">1657</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l01656">1656</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -806,7 +803,7 @@ Protected Attributes</h2></td></tr>
 <p>public </p>
 <dl class="return"><dt><b>Returns:</b></dt><dd>Array of Files </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l01635">1635</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l01634">1634</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -834,7 +831,7 @@ Protected Attributes</h2></td></tr>
 </dl>
 <dl class="return"><dt><b>Returns:</b></dt><dd>mixed Hash value or false on fail </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l00425">425</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l00424">424</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -862,7 +859,7 @@ Protected Attributes</h2></td></tr>
 </dl>
 <dl class="return"><dt><b>Returns:</b></dt><dd>string Absolute URL save path </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l01106">1106</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l01105">1105</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -908,7 +905,7 @@ Protected Attributes</h2></td></tr>
 </dl>
 <dl class="return"><dt><b>Returns:</b></dt><dd>mixed (timestamp)Filetime or (bool)false on fail </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l01164">1164</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l01163">1163</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -954,7 +951,7 @@ Protected Attributes</h2></td></tr>
 </dl>
 <dl class="return"><dt><b>Returns:</b></dt><dd>mixed Size of Chunked contents (multibyte if available or strlen) </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l01524">1524</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l01523">1523</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -983,13 +980,13 @@ Protected Attributes</h2></td></tr>
         <tr>
           <td></td>
           <td>)</td>
-          <td></td><td><code> [static]</code></td>
+          <td></td><td></td>
         </tr>
       </table>
 </div>
 <div class="memdoc">
 <p>Method to parse the &lt;head&gt; from the HTML document</p>
-<p>public</p>
+<p>public </p>
 <dl><dt><b>Parameters:</b></dt><dd>
   <table class="params">
     <tr><td class="paramtype">string</td><td class="paramname">$parseMode</td><td>Determine where parse the files (head, body, all, defaults head) </td></tr>
@@ -1000,7 +997,7 @@ Protected Attributes</h2></td></tr>
 </dl>
 <dl class="return"><dt><b>Returns:</b></dt><dd>array CSS and JS file list </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l00111">111</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l00110">110</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -1028,7 +1025,7 @@ Protected Attributes</h2></td></tr>
 </dl>
 <dl class="return"><dt><b>Returns:</b></dt><dd>string without empty lines </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l00818">818</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l00817">817</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -1067,7 +1064,7 @@ Protected Attributes</h2></td></tr>
 </dl>
 <dl class="return"><dt><b>Returns:</b></dt><dd>self </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l00303">303</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l00302">302</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -1095,7 +1092,7 @@ Protected Attributes</h2></td></tr>
 </dl>
 <dl class="return"><dt><b>Returns:</b></dt><dd>string with striped CSS comments </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l00699">699</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l00698">698</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -1116,7 +1113,7 @@ Protected Attributes</h2></td></tr>
 <p>protected </p>
 <dl class="return"><dt><b>Returns:</b></dt><dd>self </dd></dl>
 
-<p>Definition at line <a class="el" href="chunker_8php_source.html#l00316">316</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
+<p>Definition at line <a class="el" href="chunker_8php_source.html#l00315">315</a> of file <a class="el" href="chunker_8php_source.html">chunker.php</a>.</p>
 
 </div>
 </div>
@@ -1157,7 +1154,7 @@ Protected Attributes</h2></td></tr>
   <div id="nav-path" class="navpath">
     <ul>
       <li class="navelem"><a class="el" href="class_js_css_chunker.html">JsCssChunker</a>      </li>
-      <li class="footer">Generated on Mon May 9 2011 05:52:47 for JsCssChunker by&#160;
+      <li class="footer">Generated on Mon May 9 2011 05:54:41 for JsCssChunker by&#160;
 <a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.7.4 </li>
     </ul>
