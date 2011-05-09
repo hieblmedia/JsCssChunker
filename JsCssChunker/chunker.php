@@ -39,13 +39,13 @@ class JsCssChunker
     'stylesheetCharset' => 'UTF-8',
     'stylesheetCompress' => true,
     'javascriptCompress' => false,
-    'javascriptCompressorClass' => 'JSMinPlus',
+    'javascriptCompressorClass' => 'JSMin', // 'recommended: JSMin'
     'logFilesize' => false,
     'httpAuth' => false,
     'timeout' => 5
   );
 
-  protected $loadMethod = '';
+  protected $_loadMethod = '';
 
   protected $_stylesheetFiles = array();
   protected $_javascriptFiles = array();
@@ -56,8 +56,8 @@ class JsCssChunker
   protected $_phpSafeMode = false;
   protected $_phpOpenBasedir = false;
 
-  protected $stylesheetFileTree = array();
-  protected $javascriptFileTree = array();
+  protected $_stylesheetFileTree = array();
+  protected $_javascriptFileTree = array();
 
   public $sizeLog = false;
 
@@ -335,6 +335,10 @@ class JsCssChunker
       $this->options['baseHref'] = $pageUrlPath;
     }
 
+    if(substr($this->options['baseHref'], -1, 1) != '/') {
+      $this->options['baseHref'] .= '/';
+    }
+
     if($this->options['targetUrl'] == '') {
       $this->options['targetUrl'] = $this->options['baseHref'];
       $this->autoTarget = true;
@@ -542,7 +546,7 @@ class JsCssChunker
     {
       $filename = $this->getFullUrlFromBase($file);
       $filename = $this->getRealPath($filename);
-      $this->javascriptFileTree[$filename] = array();
+      $this->_javascriptFileTree[$filename] = array();
 
       $content  = trim($this->getFileContents($filename));
       $this->logFileSize($content, 'javascript', 'before');
@@ -601,13 +605,13 @@ class JsCssChunker
 
     $contents = array();
 
-    $this->stylesheetFileTree = array();
+    $this->_stylesheetFileTree = array();
 
     foreach($this->_stylesheetFiles as $file=>$attribs)
     {
       $media = $attribs['media'];
 
-      $cont = $this->_loadStylesheets($file, $this->stylesheetFileTree);
+      $cont = $this->_loadStylesheets($file, $this->_stylesheetFileTree);
       $cont = $this->_checkCssMedia($cont, $media);
 
       $contents[$file] = $cont;
@@ -709,6 +713,19 @@ class JsCssChunker
     return $content;
   }
 
+  private function isJavascriptCompressed($jscode='')
+  {
+    if($jscode == '') {
+      return false;
+    }
+
+    if(strpos($jscode, 'eval(function(p,a,c,k,e,d)') !== false) {
+      return true;
+    }
+
+    return false;
+  }
+
   /**
    * Compress javascript with an compressor class
    *
@@ -720,6 +737,14 @@ class JsCssChunker
   {
     if(!empty($content))
     {
+      // an easy check of code its already compressed
+      if($this->isJavascriptCompressed($content)) {
+        return trim($content);
+      }
+
+      $compressedContent = '';
+      $sizeBefore = function_exists('mb_strlen') ? mb_strlen($content) : strlen($content);
+
       try
       {
         $compressorClass = $this->getOption('javascriptCompressorClass');
@@ -743,20 +768,18 @@ class JsCssChunker
           switch($compressorClass)
           {
             case 'JSMin':
-              $content = JSMin::minify($content);
+              $compressedContent = JSMin::minify($content);
               break;
             case 'JSMinPlus':
-              $content = JSMinPlus::minify($content);
+              $compressedContent = JSMinPlus::minify($content);
               break;
-
             case 'JavaScriptPacker':
               $packer = new JavaScriptPacker($content);
-              $content = $packer->pack();
+              $compressedContent = $packer->pack();
               break;
 
             default:
               $this->addError('Compressor not implemented: '.$compressorClass);
-              $content = '';
               break;
           }
 
@@ -774,8 +797,20 @@ class JsCssChunker
       }
       catch (Exception $e)
       {
-        $msg = "/* \n * --- ERROR (Code not minified) --- \n * Message: ". $e->getMessage()."\n */ \n\n";
+        $msg = "/* \n * --- ERROR (Chunker-Javascript-Compressor) --- \n * Message: ". $e->getMessage()."\n */ \n\n";
         $content = $msg.$content;
+      }
+
+      // only use compressedContent if has contents
+      if($compressedContent)
+      {
+        $sizeAfter = function_exists('mb_strlen') ? mb_strlen($compressedContent) : strlen($compressedContent);
+        $diffSize = $sizeBefore - $sizeAfter;
+
+        // compress/minify only if size after lesser then before
+        if($diffSize > 1) {
+          $content = $compressedContent;
+        }
       }
     }
 
@@ -1107,7 +1142,7 @@ class JsCssChunker
     $rootUrl = $this->rootTargetUrl ? $this->rootTargetUrl : $this->rootUrl;
     $path = $this->options['targetUrl'];
 
-    return $relative ? $path : $rootUrl.$path;
+    return $relative ? str_replace($this->getOption('baseHref'), '/', $path) : $rootUrl.$path;
   }
 
   /**
@@ -1120,30 +1155,30 @@ class JsCssChunker
   {
     static $state;
 
-    if($state==null || empty($this->loadMethod))
+    if($state==null || empty($this->_loadMethod))
     {
       $state = false;
 
       @ini_set('allow_url_fopen', '1');
       $allow_url_fopen = ini_get('allow_url_fopen');
 
-      if (function_exists('curl_init') && function_exists('curl_exec') && empty($this->loadMethod)) {
-        $this->loadMethod = 'CURL';
+      if (function_exists('curl_init') && function_exists('curl_exec') && empty($this->_loadMethod)) {
+        $this->_loadMethod = 'CURL';
       }
 
-      if (function_exists('file_get_contents') && $allow_url_fopen && empty($this->loadMethod)) {
-        $this->loadMethod = 'FILEGETCONTENTS';
+      if (function_exists('file_get_contents') && $allow_url_fopen && empty($this->_loadMethod)) {
+        $this->_loadMethod = 'FILEGETCONTENTS';
       }
 
-      if (function_exists('fsockopen') && empty($this->loadMethod))
+      if (function_exists('fsockopen') && empty($this->_loadMethod))
       {
         $connnection = @fsockopen($this->pageUrl, 80, $errno, $error, 4);
         if ($connnection && @is_resource($connnection)) {
-          $this->loadMethod = 'FSOCKOPEN';
+          $this->_loadMethod = 'FSOCKOPEN';
         }
       }
 
-      if($this->loadMethod) {
+      if($this->_loadMethod) {
         $state = true;
       }
     }
@@ -1271,11 +1306,11 @@ class JsCssChunker
 
     @ini_set('default_socket_timeout', $timeout);
 
-    $origLoadMethod = $this->loadMethod;
+    $origLoadMethod = $this->_loadMethod;
 
     // force file_get_contents if file exists on local filesystem
     if(!preg_match('#^(http|https)://#Uis', $file) && file_exists($file) && is_readable($file)) {
-      $this->loadMethod = 'FILEGETCONTENTS';
+      $this->_loadMethod = 'FILEGETCONTENTS';
     }
 
     $authOptions = $this->getOption('httpAuth');
@@ -1297,7 +1332,7 @@ class JsCssChunker
       $isHttpAuth = (!empty($httpAuth) && !empty($httpAuthType) && !empty($httpAuthUser));
     }
 
-    switch ($this->loadMethod)
+    switch ($this->_loadMethod)
     {
       case 'FILEGETCONTENTS':
         $content = @file_get_contents($file);
@@ -1416,7 +1451,7 @@ class JsCssChunker
 
     $content = trim($content);
 
-    $this->loadMethod = $origLoadMethod;
+    $this->_loadMethod = $origLoadMethod;
 
     if(empty($content)) {
       $this->addLog('Empty content: '. $file);
@@ -1633,7 +1668,7 @@ class JsCssChunker
    */
   public function getStylesheetFileTree()
   {
-    return $this->stylesheetFileTree;
+    return $this->_stylesheetFileTree;
   }
 
   /**
@@ -1644,7 +1679,7 @@ class JsCssChunker
    */
   public function getJavascriptFileTree()
   {
-    return $this->javascriptFileTree;
+    return $this->_javascriptFileTree;
   }
 
   /**
