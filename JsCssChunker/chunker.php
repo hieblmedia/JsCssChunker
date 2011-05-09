@@ -26,11 +26,13 @@ define('JSCSSCHUNKER_COMPRESSOR_DIR', dirname(__FILE__).DIRECTORY_SEPARATOR.'com
  */
 class JsCssChunker
 {
-  protected $baseUrl = '';
+  protected $pageUrl = '';
+  protected $rootUrl = '';
+  protected $rootTargetUrl = '';
   protected $autoTarget = false;
 
   protected $options = array(
-    'timeout' => 5,
+    'baseHref' => '',
     'targetUrl' => '',
     'removeEmptyLines' => true,
     'stylesheetRecursiv' => true,
@@ -39,7 +41,8 @@ class JsCssChunker
     'javascriptCompress' => false,
     'javascriptCompressorClass' => 'JSMinPlus',
     'logFilesize' => false,
-    'httpAuth' => false
+    'httpAuth' => false,
+    'timeout' => 5
   );
 
   protected $loadMethod = '';
@@ -50,9 +53,6 @@ class JsCssChunker
   protected $_log   = array();
   protected $_error = array();
 
-  protected $_stylesheetBuffer = '';
-  protected $_javascriptBuffer = '';
-
   protected $_phpSafeMode = false;
   protected $_phpOpenBasedir = false;
 
@@ -61,21 +61,21 @@ class JsCssChunker
 
   public $sizeLog = false;
 
-  protected $_html = '';
+  protected $_stylesheetBuffer = '';
+  protected $_javascriptBuffer = '';
 
   /**
    * Contructor Function for init class and set options
    *
    * @access public
-   * @param $baseUrl The parent url of files from relative,
-   *                 Make sure to use only directory URLs
-   *                 (absolute REQUEST_URI without Script filename)
-   * @param $options Options {@link self->options}
+   * @param string $pageUrl The Full page URL
+   * @param array $options Options {@link self->options}
    * @return mixed The option value
    */
-  public function __construct($baseUrl, $options=array())
+  public function __construct($pageUrl, $options=array())
   {
-    $this->baseUrl = $baseUrl;
+    $this->pageUrl = $pageUrl;
+    $this->rootUrl = parse_url($pageUrl, PHP_URL_SCHEME).'://'.parse_url($pageUrl, PHP_URL_HOST);
 
     if(is_array($options) && !empty($options))
     {
@@ -103,14 +103,82 @@ class JsCssChunker
    *
    * @access public
    * @static
-   * @param $html HTML Content
-   * @param $parseMode Determine where parse the files (head, body, all, defaults head)
-   * @param $autoApply Automaticly add all founded js and css files to the queue
+   * @param string $parseMode Determine where parse the files (head, body, all, defaults head)
+   * @param boolean $autoApply Automaticly add all founded js and css files to the queue
+   * @param string $forceHtml Optional HTML Content to Parse (leave empty to use the pageUrl Contents)
    * @return array CSS and JS file list
    */
-  public function parseRawHeader($html='', $parseMode='head', $autoApply=false)
+  public function parseRawHeader($parseMode='head', $autoApply=false, $forceHtml='')
   {
-    $html = $html ? $html : $this->_html;
+    static $_html;
+
+    if(empty($_html) && !$forceHtml)
+    {
+      $_html = $this->getFileContents($this->pageUrl);
+
+      // remove comments from html data
+      $_html = preg_replace('#<!--(.*)-->#Uis', '', $_html);
+
+      $html = $_html;
+
+      // detect the real baseHref from html document
+      preg_match('#<base(.*)/>#Uis', $html, $matches);
+
+      if($matches && isset($matches[1]) && !empty($matches[1]))
+      {
+        $_attribs = $this->parseAttributes($matches[1]);
+        $_attribsLower = array();
+        foreach($_attribs as $k=>$v)
+        {
+          $k = strtolower($k);
+          $_attribsLower[$k] = $v;
+        }
+        $_attribs = $_attribsLower;
+
+        if(isset($_attribs['href']) && !empty($_attribs['href']))
+        {
+          $baseHref = parse_url($_attribs['href'], PHP_URL_PATH);
+          $baseHrefSheme = parse_url($_attribs['href'], PHP_URL_SCHEME);
+          $baseHrefHost = parse_url($_attribs['href'], PHP_URL_HOST);
+
+          if($baseHrefSheme && $baseHrefHost)
+          {
+            if(substr($baseHref, -1, 1) == '/') {
+              $baseHref = $baseHref;
+            } else {
+              $baseHref = $this->cleanPath(dirname($baseHref)).'/';
+            }
+
+            $this->rootUrl = $baseHrefSheme.'://'.$baseHrefHost;
+          }
+          else
+          {
+            $slashBefore = (substr($baseHref, 0, 1)=='/' ? true : false);
+            $slashAfter = (substr($baseHref, -1, 1)=='/' ? true : false);
+
+            if(!$slashBefore && !$slashAfter) {
+              $baseHref = $this->options['baseHref'];
+            } elseif($slashBefore && !$slashAfter) {
+              $baseHref = '/';
+            } elseif(!$slashBefore && $slashAfter) {
+              $baseHref = '/'.$baseHref;
+            }
+          }
+
+          $this->options['baseHref'] = $baseHref;
+        }
+      }
+    }
+    elseif($forceHtml)
+    {
+      // remove comments from html data
+      $forceHtml = preg_replace('#<!--(.*)-->#Uis', '', $forceHtml);
+      $html = $forceHtml;
+    }
+    else
+    {
+      $html = $_html;
+    }
 
     $filelist = array(
       'css' => array(),
@@ -144,7 +212,6 @@ class JsCssChunker
         $_contents = $matches[0];
         break;
     }
-
 
     // get css files
     $matches = array();
@@ -217,8 +284,8 @@ class JsCssChunker
    * Get a specific option in class
    *
    * @access public
-   * @param $key Option name
-   * @param $def Default value if $key not set
+   * @param string $key Option name
+   * @param mixed $def Default value if $key not set
    * @return mixed The option value
    */
   public function getOption($key, $def=null) {
@@ -229,44 +296,79 @@ class JsCssChunker
    * Set a specific option in class
    *
    * @access public
-   * @param $key Option name
-   * @param $value Value to set for option $key
-   * @return void
+   * @param string $key Option name
+   * @param mixed $value Value to set for option $key
+   * @return self
    */
   public function setOption($key, $value)
   {
     $this->options[$key] = $value;
     $this->validateOptions();
+    return $this;
   }
 
   /**
    * Method to validate options
    *
    * @access protected
-   * @return void
+   * @return self
    */
   protected function validateOptions()
   {
+    if($this->options['baseHref'] == '') {
+      $pageUrl = $this->pageUrl;
+
+      $pageUrlPath = parse_url($pageUrl, PHP_URL_PATH);
+
+      // check is filename
+      if(substr($pageUrlPath, -1, 1) != '/') {
+        $file = basename($pageUrlPath);
+
+        if(strrpos($file, '.')) {
+          $pageUrlPath = preg_replace('#'.$file.'$#Uis', '', $pageUrlPath);
+        }
+      }
+
+      if(substr($pageUrlPath, -1, 1) != '/') {
+        $pageUrlPath .= '/';
+      }
+
+      $this->options['baseHref'] = $pageUrlPath;
+    }
+
     if($this->options['targetUrl'] == '') {
-      $this->options['targetUrl'] = $this->baseUrl;
+      $this->options['targetUrl'] = $this->options['baseHref'];
       $this->autoTarget = true;
     } else {
-      $this->autoTarget = false;
+      $targetUrlScheme = parse_url($this->options['targetUrl'], PHP_URL_SCHEME);
+      $targetUrlHost = parse_url($this->options['targetUrl'], PHP_URL_HOST);
+      $targetUrlPath = parse_url($this->options['targetUrl'], PHP_URL_PATH);
+
+      if($targetUrlScheme && $targetUrlHost) {
+        $this->rootTargetUrl = $targetUrlScheme.'://'.$targetUrlHost;
+        $this->options['targetUrl'] = $targetUrlPath;
+        $this->autoTarget = false;
+      } elseif(substr($targetUrlPath, 0, 1) != '/') {
+        $this->options['targetUrl'] = '/'.$targetUrlPath;
+        $this->autoTarget = false;
+      }
     }
 
     if(substr($this->options['targetUrl'], -1, 1) != '/') {
       $this->options['targetUrl'] .= '/';
     }
+
+    return $this;
   }
 
   /**
    * Method to add a Stylesheet file to parse
    *
    * @access public
-   * @param $file Filename (relative or absolute)
-   * @param $type Type (defaults: text/css)
-   * @param $media Media (defaults: all)
-   * @return void
+   * @param string $file Filename (relative or absolute)
+   * @param string $type Type (defaults: text/css)
+   * @param string $media Media (defaults: all)
+   * @return self
    */
   public function addStylesheet($file, $type='text/css', $media='all')
   {
@@ -282,15 +384,17 @@ class JsCssChunker
 
       $this->addLog('Stylesheet - Added: '.$file);
     }
+
+    return $this;
   }
 
   /**
    * Method to add a Javascript file to parse
    *
    * @access public
-   * @param $file Filename (relative or absolute)
-   * @param $type Type (defaults: text/javascript)
-   * @return void
+   * @param string $file Filename (relative or absolute)
+   * @param string $type Type (defaults: text/javascript)
+   * @return self
    */
   public function addJavascript($file, $type='text/javascript')
   {
@@ -305,24 +409,28 @@ class JsCssChunker
 
       $this->addLog('Script - Added: '.$file);
     }
+
+    return $this;
   }
 
   /**
    * Method to get a Hash value of processing stylesheets (e.g. for caching)
    *
    * @access public
-   * @param $useBase Set this like a host name, if your site has multiple domains (more effective caching)
-   *                 (defults: baseUrl)
-   * @return Hash value
+   * @param boolean $includeDomain If true the the PageUrl Domain included in the Cache Hash.
+   *                         This is Useful for an multi-domain system with one cache folder.
+   *                         (defaults: false)
+   * @return mixed Hash value or false on fail
    */
-  public function getStylesheetHash($useBase='')
+  public function getStylesheetHash($includeDomain=false)
   {
     if(!empty($this->_stylesheetFiles))
     {
       $prefixArr = array(
         '_type' => 'stylesheet',
-        'baseUrl' => $useBase ? $useBase : $this->baseUrl,
+        'pageUrl' => $includeDomain ? $this->rootUrl : 'GLOBAL',
         'options' => array(
+          $this->getOption('baseHref'),
           $this->getOption('targetUrl'),
           $this->getOption('removeEmptyLines'),
           $this->getOption('stylesheetRecursiv'),
@@ -347,18 +455,20 @@ class JsCssChunker
    * Method to get a Hash value of processing javascripts (e.g. for caching)
    *
    * @access public
-   * @param $useBase Set this like a host name, if your site has multiple domains (more effective caching)
-   *                 (defults: baseUrl)
-   * @return Hash value
+   * @param boolean $includeDomain If true the the PageUrl Domain included in the Cache Hash.
+   *                         This is Useful for an multi-domain system with one cache folder.
+   *                         (defaults: false)
+   * @return mixed Hash value or false on fail
    */
-  public function getJavascriptHash($useBase='')
+  public function getJavascriptHash($includeDomain=false)
   {
     if(!empty($this->_javascriptFiles))
     {
       $prefixArr = array(
         '_type' => 'javascript',
-        'baseUrl' => $useBase ? $useBase : $this->baseUrl,
+        'pageUrl' => $includeDomain ? $this->rootUrl : 'GLOBAL',
         'options' => array(
+          $this->getOption('baseHref'),
           $this->getOption('targetUrl'),
           $this->getOption('removeEmptyLines'),
           $this->getOption('javascriptCompress'),
@@ -431,7 +541,7 @@ class JsCssChunker
 
     foreach($this->_javascriptFiles as $file=>$attribs)
     {
-      $filename = $this->getFullFilePath($file);
+      $filename = $this->getFullUrlFromBase($file);
       $filename = $this->getRealPath($filename);
       $this->javascriptFileTree[$filename] = array();
 
@@ -482,10 +592,9 @@ class JsCssChunker
 
   /**
    * Merge/Minify/Compress added Stylesheet files recursivly with reading @import rules
-   * @TODO: add @import tree for logging
    *
    * @access private
-   * @return string $content return merged content of files
+   * @return self
    */
   private function mergeStylesheets()
   {
@@ -534,6 +643,8 @@ class JsCssChunker
     $this->logFileSize($content, 'stylesheet', 'after');
 
     $this->addLog('Stylesheet - Merge complete');
+
+    return $this;
   }
 
   /**
@@ -583,7 +694,7 @@ class JsCssChunker
    *
    * @access protected
    * @param string $content Contents of Stylesheet/CSS
-   * @return String with striped CSS comments
+   * @return string with striped CSS comments
    */
   protected function stripStylesheetComments($content='')
   {
@@ -604,7 +715,7 @@ class JsCssChunker
    *
    * @access private
    * @param string $content Contents of the Javascript
-   * @return Compressed Javascript content
+   * @return string Compressed Javascript content
    */
   private function compressJavascript($content)
   {
@@ -673,28 +784,28 @@ class JsCssChunker
   }
 
   /**
-   * Determine the fullpath of a file
+   * Determine the full url of a file
    *
-   * @access public
-   * @param string $file Path to file to load
-   * @param bool Set use target option, default false
-   * @return Replaced file path
+   * @access protected
+   * @param string $url Relative or Absolute URL
+   * @return string Full aboslute URL
    */
-  public function getFullFilePath($file, $useTarget=false)
+  protected function getFullUrlFromBase($url='')
   {
-    if(substr($file, 0, 4) != 'http')
+    $scheme = parse_url($url, PHP_URL_SCHEME);
+    $host = parse_url($url, PHP_URL_HOST);
+
+    if(!$scheme && !$host)
     {
-      $baseUrl = ($useTarget ? $this->getOption('targetUrl') : $this->baseUrl);
-      $basePath = parse_url($this->baseUrl, PHP_URL_PATH);
-
-      if(substr($file, 0, strlen($basePath)) == $basePath) {
-        $file = substr($file, strlen($basePath));
+      $url = $this->cleanPath($url);
+      if(substr($url, 0, 1) == '/') {
+        $url = $this->rootUrl.$url;
+      } else {
+        $url = $this->rootUrl.$this->options['baseHref'].$url;
       }
-
-      $file = $baseUrl.$file;
     }
 
-    return $file;
+    return $url;
   }
 
   /**
@@ -714,11 +825,11 @@ class JsCssChunker
    *
    * @access private
    * @param string $file Path to file to load
-   * @return Merged content
+   * @return string Merged content
    */
   private function _loadStylesheets($file, &$fileTree=array())
   {
-    $filename = $this->getFullFilePath($file);
+    $filename = $this->getFullUrlFromBase($file);
     $filename = $this->getRealpath($filename);
     $fileTree[$filename] = array();
 
@@ -802,6 +913,7 @@ class JsCssChunker
     if ($content && strpos($content, '@media')===false) {
       $content = '@media '.$media.' {'.$content.'}';
     }
+
     return $content;
   }
 
@@ -835,6 +947,8 @@ class JsCssChunker
     $content = preg_replace_callback($regex, array( &$this, '_replaceCSSPaths_Callback'), $content);
     $content = str_replace('[[CALLBACK_URLREPLACED]]', 'url', $content);
 
+    // TOOD: if SSL, replace absolute(external) urls to https also ?????
+
     // reset pathscope
     $this->pathscope = '';
 
@@ -850,106 +964,62 @@ class JsCssChunker
    */
   private function _replaceCSSPaths_Callback($matches)
   {
+    static $targetUrlFull;
+    static $targetUrlArr;
+    static $baseHrefArr;
+
     $url = $this->pathscope.$matches[3];
+    $baseUrl = $this->rootUrl.$this->options['baseHref'];
     $targetUrl = $this->getOption('targetUrl');
 
-    $baseUrlCompare = $this->baseUrl;
-    if(substr($baseUrlCompare, -1, 1) != '/') {
-      $baseUrlCompare .= '/';
-    }
-
-    $holdAbsoluteUrl = false;
-    if(preg_match('#^(http|https)://#Uis', $url))
+    if(!$targetUrlFull)
     {
-      $u1 = parse_url($this->baseUrl);
-      $u2 = parse_url($url);
+      $targetUrlFull = $this->rootUrl.parse_url($targetUrl, PHP_URL_PATH);
+      $targetUrlArr = explode('/', $targetUrl);
 
-      if(!empty($u1['host']) && !empty($u2['host']) && $u1['host'] != $u2['host']) {
-        $holdAbsoluteUrl = true;
+      $tmpArr = array();
+      foreach($targetUrlArr as $k=>$v) {
+        if($v != '') { $tmpArr[] = $v; }
       }
+      $targetUrlArr = $tmpArr;
+
+      $baseHrefArr = explode('/', $this->options['baseHref']);
+
+      $tmpArr = array();
+      foreach($baseHrefArr as $k=>$v) {
+        if($v != '') { $tmpArr[] = $v; }
+      }
+      $baseHrefArr = $tmpArr;
     }
 
-    if(!$holdAbsoluteUrl)
+
+    if(parse_url($url, PHP_URL_SCHEME) && !preg_match('#^'.$targetUrl.'#', $url))
     {
-      if($baseUrlCompare == $targetUrl || $this->autoTarget)
-      {
-        $url = preg_replace('#^'.$targetUrl.'#', '/', $url);
+      // add directory difference for full replace baseUrl to targetURL
+      $diffPath = $targetUrl.str_repeat('../', count($targetUrlArr));
+      $url = preg_replace('#'.$this->rootUrl.'#Uis', $this->rootUrl.$diffPath, $url);
+
+      if($this->options['baseHref'] != $targetUrl) {
+        $url = preg_replace('#^'.$targetUrlFull.'#', '', $url);
+      } else {
+        $url = preg_replace('#^'.$baseUrl.'#', $targetUrl, $url);
       }
-      else
-      {
-        $targetTmp = parse_url($targetUrl, PHP_URL_PATH);
-        $targetTmp = explode('/', preg_replace('#/$#', '', $targetTmp));
-
-        $scheme = parse_url($this->pathscope, PHP_URL_SCHEME);
-        $host = parse_url($this->pathscope, PHP_URL_HOST);
-        $scopeTmp = parse_url($this->pathscope, PHP_URL_PATH);
-        $scopeTmp = explode('/', preg_replace('#/$#', '', $scopeTmp));
-
-        $baseTmp = parse_url($this->baseUrl, PHP_URL_PATH);
-        $baseTmp = explode('/', preg_replace('#/$#', '', $baseTmp));
-
-        $lastIndex = 0;
-        foreach($targetTmp as $k=>$v)
-        {
-          if(isset($baseTmp[$k]) && $v==$baseTmp[$k]) {
-            $lastIndex = $k;
-          }
-        }
-        $parentCount = (count($targetTmp)-1) - $lastIndex;
-
-        // base to target convert with additional relative placeholders (if internal)
-        if($parentCount > 0 && $lastIndex > 0 && $lastIndex >= (count($baseTmp)-1))
-        {
-          // scope is within base directory
-          //$url = $this->pathscope.str_repeat('../', $parentCount).$matches[3];
-          $url = $this->pathscope.$matches[3];
-          $url = preg_replace('#^'.$this->baseUrl.'#', $targetUrl.str_repeat('../', $parentCount), $url);
-        }
-        else
-        {
-          // scope is outside base directory
-          $diff = array_slice($targetTmp, $lastIndex+1);
-
-          if(count($diff))
-          {
-            $a = array_slice($scopeTmp, 0, $lastIndex+1);
-            $b = array_slice($scopeTmp, $lastIndex+1);
-
-            if($lastIndex > 0) {
-              $diffPath = '/'.implode('/', $diff).str_repeat('/..', count($diff));
-            } else {
-              $diffPath = str_repeat('/..', count($diff));
-            }
-
-            $url = $scheme.'://'.$host.implode('/', $a).$diffPath.($b ? '/'.implode('/', $b) : '').'/'.$matches[3];
-
-            if($pos = strpos($url, $targetUrl)) {
-              // in most cases relative target
-              $url = substr($url, $pos);
-            } elseif($lastIndex > 0) {
-              // in most cases an absolute target (CDN Host)
-              $diffPath = $targetUrl.str_repeat('../', count($diff));
-              $url = $diffPath.($b ? implode('/', $b) : '').'/'.$matches[3];
-            }
-          }
-        }
-
-        if(!parse_url($targetUrl, PHP_URL_HOST)) {
-          $url = preg_replace('#^'.$this->baseUrl.'#', '', $url);
-        } else {
-          $url = preg_replace('#^'.$this->baseUrl.'#', $targetUrl, $url);
-        }
-      }
+    } else {
+      $url = preg_replace('#^'.$baseUrl.'#', $targetUrl, $url);
     }
 
-    // shrink URL
+    // clean URL-Path
     $url = $this->cleanPath($url);
-    // $url = $this->getRealpath($url);
 
-    // Full SSL (https) support, if URL absolute
-    // Note: If the target file external the host needs an valid SSL certificate
-    if(preg_match('#^https://#Uis', $this->baseUrl)) {
-      $url = preg_replace('#http://#Uis', 'https://', $url);
+    if($this->options['baseHref'] != '/' && $baseHrefArr > 1) {
+      if(strpos($url, '..'.$this->options['baseHref']) ) {
+        $baseHrefCount = count($baseHrefArr);
+        $diff = str_repeat('/..', $baseHrefCount).$this->options['baseHref'];
+
+        if($diff) {
+          $url = preg_replace('#'.$diff.'#U', '/', $url, 1);
+        }
+      }
     }
 
     return $matches[1].'[[CALLBACK_URLREPLACED]]('.$this->cleanPath($url).')';
@@ -962,26 +1032,23 @@ class JsCssChunker
    * @param string $ds Directory seperator
    * @return The clean path
    */
-  public function cleanPath($path, $ds='/')
+  public function cleanPath($path='', $ds='/')
   {
     $path = trim($path);
+    if(empty($path)) { return; }
 
     if (!empty($path))
     {
-      // handle absolute urls
-      $scheme = '';
-      $tmp = explode('://', $path);
-      if(count($tmp)==2) {
-        $scheme = $tmp[0];
-        $path = $tmp[1];
-      }
+      $scheme = parse_url($path, PHP_URL_SCHEME);
+      $host = parse_url($path, PHP_URL_HOST);
+      $path = parse_url($path, PHP_URL_PATH);
 
       // Remove double slashes and backslahses and convert all slashes and backslashes to DS
       $path = preg_replace('#[/\\\\]+#', $ds, $path);
       $path = $this->getRealPath($path);
 
-      if($scheme) {
-        $path = $scheme.'://'.$path;
+      if($scheme && $host) {
+        $path = $scheme.'://'.$host.$path;
       }
     }
 
@@ -997,16 +1064,12 @@ class JsCssChunker
    */
   private function getRealpath($path='')
   {
-    if(!$path) { return; }
+    $path = trim($path);
+    if(empty($path)) { return; }
 
-    $origPath = $path;
-
-    $scheme = '';
-    $tmp = explode('://', $path);
-    if(count($tmp)==2) {
-      $scheme = $tmp[0];
-      $path = $tmp[1];
-    }
+    $scheme = parse_url($path, PHP_URL_SCHEME);
+    $host = parse_url($path, PHP_URL_HOST);
+    $path = parse_url($path, PHP_URL_PATH);
 
     $tmp=array();
     $parts = explode('/', $path);
@@ -1025,8 +1088,8 @@ class JsCssChunker
 
     $path = ($path{0}=='/' ? '/' : '').implode('/', $tmp);
 
-    if($scheme) {
-      $path = $scheme.'://'.$path;
+    if($scheme && $host) {
+      $path = $scheme.'://'.$host.$path;
     }
 
     return $path;
@@ -1036,45 +1099,22 @@ class JsCssChunker
    * Get the absolute URL Path where the stylesheet must be callable
    *
    * @access public
+   * @param boolean $relative If true only the path will be returned
    * @return string Absolute URL save path
    */
-  public function getTargetUrlSavePath()
+  public function getTargetUrlSavePath($relative=false)
   {
-    $path = '';
+    $rootUrl = $this->rootTargetUrl ? $this->rootTargetUrl : $this->rootUrl;
+    $path = $this->options['targetUrl'];
 
-    $baseUrl = $this->baseUrl;
-    $targetUrl = $this->getOption('targetUrl');
-
-    if($this->autoTarget)
-    {
-      $path = $baseUrl;
-    } else {
-      if(preg_match('#^(http|https)://#Uis', $targetUrl))
-      {
-        $path = $targetUrl;
-      }
-      else
-      {
-        $basePath = parse_url($baseUrl, PHP_URL_PATH);
-        $targetUrl = str_replace($basePath, '', $targetUrl);
-        $path = $baseUrl.'/'.$targetUrl;
-      }
-    }
-
-    $path = $this->getRealpath($path);
-
-    if(substr($path, -1, 1) != '/') {
-      $path .= '/';
-    }
-
-    return $path;
+    return $relative ? $path : $rootUrl.$path;
   }
 
   /**
    * Check can load files
    *
    * @access public
-   * @return bool Can chunk
+   * @return boolean Can chunk
    */
   public function check()
   {
@@ -1097,7 +1137,7 @@ class JsCssChunker
 
       if (function_exists('fsockopen') && empty($this->loadMethod))
       {
-        $connnection = @fsockopen($this->baseUrl, 80, $errno, $error, 4);
+        $connnection = @fsockopen($this->pageUrl, 80, $errno, $error, 4);
         if ($connnection && @is_resource($connnection)) {
           $this->loadMethod = 'FSOCKOPEN';
         }
@@ -1215,35 +1255,6 @@ class JsCssChunker
     closedir($handle);
 
     return $arr;
-  }
-
-  /**
-   * Get the contents of a given URL or File
-   *
-   * @access public
-   * @param $url URL or File (local or external)
-   * @return string Loaded contents
-   */
-  public function loadHtml($url='')
-  {
-    $other = $url ? true : false;
-    $contents = '';
-
-    if(!$this->_html || $other) {
-      $url = trim($url ? $url : $this->baseUrl);
-
-      if($url != '') {
-        $contents = $this->getFileContents($url);
-
-        if(!$other) {
-          $this->_html = $contents;
-        }
-      }
-    } else {
-      $contents = $this->_html;
-    }
-
-    return $contents;
   }
 
   /**
@@ -1564,7 +1575,7 @@ class JsCssChunker
   /**
    * Get log messages
    *
-   * @param bool $mostRecent Most recent or all messages
+   * @param boolean $mostRecent Most recent or all messages
    * @access public
    * @return array or string of Log Entrie(s)
    */
@@ -1595,7 +1606,7 @@ class JsCssChunker
   /**
    * Get error messages
    *
-   * @param bool $mostRecent Most recent or all messages
+   * @param boolean $mostRecent Most recent or all messages
    * @access public
    * @return array or string of Error(s)
    */
