@@ -38,7 +38,7 @@ $cacheFolderName = 'cache'; // ! without leading and trailing slash
 $targetUrl =  preg_replace('#'.basename(__FILE__).'$#Uis', '', $_SERVER["REQUEST_URI"]).($cacheFolderName ? $cacheFolderName.'/' : ''); // relative
 
 /////////// Chunker Part ///////////////
-$caching = true;
+$caching = false;
 
     // get the chunker
     $chunker = new JsCssChunker(
@@ -47,7 +47,7 @@ $caching = true;
         'targetUrl' => $targetUrl, // (optional: absolute or relative)
         'logFilesize' => true, // for performance reasons its recommended to enable this only for debugging,
         'javascriptCompress' => true, // default false
-        'javascriptCompressorClass' => 'JSMinPlus' // (JSMin, JSMinPlus, JavaScriptPacker) default 'JSMinPlus'
+        'javascriptCompressorClass' => 'JSMin' // (JSMin, JSMinPlus, JavaScriptPacker) default 'JSMin'
       )
     );
 

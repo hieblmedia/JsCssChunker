@@ -32,7 +32,7 @@ if(!empty($targetUrl)) {
 
 $chunker->setOption('logFilesize', true);
 // $chunker->setOption('javascriptCompress', true); // default false (false does merge files without minify)
-// $chunker->setOption('javascriptCompressorClass', 'JSMinPlus'); // (JSMin, JSMinPlus, JavaScriptPacker) default 'JSMinPlus'
+// $chunker->setOption('javascriptCompressorClass', 'JSMin'); // (JSMin, JSMinPlus, JavaScriptPacker) default 'JSMin'
 // $chunker->setOption('httpAuth', array('user'=>'username', 'pass'=>'password')); // If httpAuth requried on local system, dot not set, it will be automaticly detected.
 
 
