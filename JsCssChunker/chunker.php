@@ -1245,15 +1245,24 @@ class JsCssChunker
 
     $files = self::_filesRecursiv($path, $filter);
 
-    array_multisort(
-        array_map( 'filemtime', $files ),
-        SORT_NUMERIC,
-        SORT_DESC, // newest first, or `SORT_ASC` for oldest first
-        $files
-    );
+    if(empty($files))
+    {
+      // check the directory when no files was found in path
+      // not supported on all filesystems but much enough as fallback too
+      $filetime = @filemtime($path);
+    }
+    else
+    {
+      array_multisort(
+          array_map( 'filemtime', $files ),
+          SORT_NUMERIC,
+          SORT_DESC, // newest first, or `SORT_ASC` for oldest first
+          $files
+      );
 
-    $file     = array_shift($files);
-    $filetime = @filemtime($file);
+      $file     = array_shift($files);
+      $filetime = @filemtime($file);
+    }
 
     return $filetime ? $filetime : false;
   }
