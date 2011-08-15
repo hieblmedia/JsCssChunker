@@ -910,7 +910,7 @@ class JsCssChunker
           $importMedia = trim($relpathsMedia[$key]);
 
           // add media all no media set
-          if(strpos($icont, '@media')===false)
+          if(strpos($icont, '@')===false)
           {
             // add media query from @import if available or media all as fallback
             if($importMedia) {
@@ -919,7 +919,7 @@ class JsCssChunker
               $icont = '@media all { '.$icont.' }';
             }
           }
-          elseif($importMedia)
+          elseif($importMedia && strpos($icont, '@')===false)
           {
              // add media query from @import additional if available
              $icont = str_replace('@media ', '@media '.$importMedia.', ', $icont);
@@ -968,15 +968,18 @@ class JsCssChunker
     }
 
     /**
-     **Search for "/(:.*)url\(([\'"]?)(?![a-z]+:)([^\'")]+)[\'"]?\)?/i"
+     * Search for "/([,:].*)url\(([\'"]?)(?![a-z]+:)([^\'")]+)[\'"]?\)?/i"
      * The : at first as shorthand to exclude the @import rule in stylesheets
      * Does IGNORE extenal files like http://, ftp://... Only relative urls would by replaced
      */
     // set pathscrope for callback method to current stylesheet path
     $this->pathscope = $path;
 
+    // remove linebreaks to can find multiple url sources (comma seperated)
+    $content = str_replace(array("\n", "\r"), '', $content);
+
     // replace and shortend urls with pathscope
-    $regex = '/(:.*)url\(([\'"]?)(?![a-z]+:)([^\'")]+)[\'"]?\)/iU'; // only relative urls
+    $regex = '/([,:].*)url\(([\'"]?)(?![a-z]+:)([^\'")]+)[\'"]?\)/iU'; // only relative urls
 
     $content = preg_replace_callback($regex, array( &$this, '_replaceCSSPaths_Callback'), $content);
     $content = str_replace('[[CALLBACK_URLREPLACED]]', 'url', $content);
