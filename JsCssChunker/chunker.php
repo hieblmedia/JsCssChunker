@@ -444,13 +444,13 @@ class JsCssChunker
         '_type' => 'stylesheet',
         'pageUrl' => $includeDomain ? $this->rootUrl : 'GLOBAL',
         'options' => array(
-      $this->getOption('baseHref'),
-      $this->getOption('targetUrl'),
-      $this->getOption('removeEmptyLines'),
-      $this->getOption('stylesheetRecursiv'),
-      $this->getOption('stylesheetCharset'),
-      $this->getOption('stylesheetCompress')
-      )
+          $this->getOption('baseHref'),
+          $this->getOption('targetUrl'),
+          $this->getOption('removeEmptyLines'),
+          $this->getOption('stylesheetRecursiv'),
+          $this->getOption('stylesheetCharset'),
+          $this->getOption('stylesheetCompress')
+        )
       );
       $prefix = serialize($prefixArr);
 
@@ -638,17 +638,17 @@ class JsCssChunker
     $content = preg_replace('/@charset\s+[\'"](\S*)\b[\'"];/i', '', $content);
     $this->addLog('Stylesheet - remove all @charset rules for browser compatibility');
 
+    if ($this->getOption('stylesheetCompress'))
+    {
+      $content = $this->compressStylesheet($content);
+      $this->addLog('Stylesheet - Compressed content');
+    }
+
     if ($charset = $this->getOption('stylesheetCharset'))
     {
       // add @charset to stylesheet in FIRST LINE only (important with linebreak for safari)
       $content = "@charset \"".$charset."\";\n".$content;
       $this->addLog('Stylesheet - Set @charset ('.$charset.') in first line');
-    }
-
-    if ($this->getOption('stylesheetCompress'))
-    {
-      $content = $this->compressStylesheet($content);
-      $this->addLog('Stylesheet - Compressed content');
     }
 
     if ($this->getOption('removeEmptyLines'))
