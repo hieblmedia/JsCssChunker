@@ -23,7 +23,7 @@ define('JSCSSCHUNKER_COMPRESSOR_DIR', dirname(__FILE__).DIRECTORY_SEPARATOR.'com
 
 /*
  * Class to minify, merge and compress stylesheet and javascript files
- */
+*/
 class JsCssChunker
 {
   protected $pageUrl = '';
@@ -39,10 +39,11 @@ class JsCssChunker
     'stylesheetCharset' => 'UTF-8',
     'stylesheetCompress' => true,
     'javascriptCompress' => false,
-    'javascriptCompressorClass' => 'JSMin', // 'recommended: JSMin'
+    'javascriptCompressorClass' => 'JSMin', // 'recommended: YUICompressor (with java), JSMin (if java not available)'
+    'javaBin' => 'java', // full path of java - required for the yui compressor
     'logFilesize' => false,
     'httpAuth' => false,
-    'timeout' => 5
+    'timeout' => 5 // connection timeout to load files via url
   );
 
   protected $_loadMethod = '';
@@ -77,7 +78,7 @@ class JsCssChunker
     $this->pageUrl = $pageUrl;
     $this->rootUrl = parse_url($pageUrl, PHP_URL_SCHEME).'://'.parse_url($pageUrl, PHP_URL_HOST);
 
-    if(is_array($options) && !empty($options))
+    if (is_array($options) && !empty($options))
     {
       foreach($options as $k=>$v) {
         $this->options[$k] = $v;
@@ -86,7 +87,7 @@ class JsCssChunker
 
     $state = self::check();
 
-    if($state==false) {
+    if ($state==false) {
       throw new Exception('JsCssChunker - Check fail: CURL or file_get_contents with allow_url_fopen or fsockopen is needed');
     }
 
@@ -96,6 +97,16 @@ class JsCssChunker
     $this->_phpOpenBasedir = (ini_get('open_basedir') == '' ? false : true);
 
     $this->validateOptions();
+  }
+
+  static public function getAvailableCompressors()
+  {
+    return array(
+      'YUICompressor' => 'Recommended (if java is available), Compression: Best',
+      'JSMin' => 'Recommended (if no java available), Compression: Normal',
+      'JSMinPlus' => 'Compression: High, Error-sensitive',
+      'JavaScriptPacker' => 'Compression: High, Error-sensitive'
+    );
   }
 
   /**
@@ -111,7 +122,7 @@ class JsCssChunker
   {
     static $_html;
 
-    if(empty($_html) && !$forceHtml)
+    if (empty($_html) && !$forceHtml)
     {
       $_html = $this->getFileContents($this->pageUrl);
 
@@ -123,7 +134,7 @@ class JsCssChunker
       // detect the real baseHref from html document
       preg_match('#<base(.*)/>#Uis', $html, $matches);
 
-      if($matches && isset($matches[1]) && !empty($matches[1]))
+      if ($matches && isset($matches[1]) && !empty($matches[1]))
       {
         $_attribs = $this->parseAttributes($matches[1]);
         $_attribsLower = array();
@@ -134,15 +145,15 @@ class JsCssChunker
         }
         $_attribs = $_attribsLower;
 
-        if(isset($_attribs['href']) && !empty($_attribs['href']))
+        if (isset($_attribs['href']) && !empty($_attribs['href']))
         {
           $baseHref = parse_url($_attribs['href'], PHP_URL_PATH);
           $baseHrefSheme = parse_url($_attribs['href'], PHP_URL_SCHEME);
           $baseHrefHost = parse_url($_attribs['href'], PHP_URL_HOST);
 
-          if($baseHrefSheme && $baseHrefHost)
+          if ($baseHrefSheme && $baseHrefHost)
           {
-            if(substr($baseHref, -1, 1) == '/') {
+            if (substr($baseHref, -1, 1) == '/') {
               $baseHref = $baseHref;
             } else {
               $baseHref = $this->cleanPath(dirname($baseHref)).'/';
@@ -155,11 +166,11 @@ class JsCssChunker
             $slashBefore = (substr($baseHref, 0, 1)=='/' ? true : false);
             $slashAfter = (substr($baseHref, -1, 1)=='/' ? true : false);
 
-            if(!$slashBefore && !$slashAfter) {
+            if (!$slashBefore && !$slashAfter) {
               $baseHref = $this->options['baseHref'];
-            } elseif($slashBefore && !$slashAfter) {
+            } elseif ($slashBefore && !$slashAfter) {
               $baseHref = '/';
-            } elseif(!$slashBefore && $slashAfter) {
+            } elseif (!$slashBefore && $slashAfter) {
               $baseHref = '/'.$baseHref;
             }
           }
@@ -168,7 +179,7 @@ class JsCssChunker
         }
       }
     }
-    elseif($forceHtml)
+    elseif ($forceHtml)
     {
       // remove comments from html data
       $forceHtml = preg_replace('#<!--(.*)-->#Uis', '', $forceHtml);
@@ -186,7 +197,7 @@ class JsCssChunker
 
     $_contents = '';
 
-    if(empty($parseMode)) {
+    if (empty($parseMode)) {
       $parseMode = 'head';
     }
     $parseMode = strtolower($parseMode);
@@ -195,34 +206,34 @@ class JsCssChunker
     {
       case 'all':
         $_contents = $html;
-      break;
+        break;
 
       default:
       case 'head':
       case 'body':
         $headData = '';
-        $matches = array();
+      $matches = array();
 
-        preg_match('#<'.$parseMode.'.*>(.*)</'.$parseMode.'>#Uis', $html, $matches);
-        if(empty($matches[0])) {
-          return $filelist;
-        }
+      preg_match('#<'.$parseMode.'.*>(.*)</'.$parseMode.'>#Uis', $html, $matches);
+      if (empty($matches[0])) {
+        return $filelist;
+      }
 
-        $_contents = $matches[0];
-        break;
+      $_contents = $matches[0];
+      break;
     }
 
     // get css files
     $matches = array();
     preg_match_all('#<link(.*)>#Uis', $_contents, $matches);
 
-    if($matches && !empty($matches[0]))
+    if ($matches && !empty($matches[0]))
     {
       foreach($matches[0] as $i=>$entry)
       {
         $attributes = trim($matches[1][$i]);
 
-        if(substr($attributes, -1, 1) == '/')
+        if (substr($attributes, -1, 1) == '/')
         {
           $attributes = substr($attributes, 0, strlen($attributes)-1);
           $attributes = trim($attributes);
@@ -234,11 +245,11 @@ class JsCssChunker
         $_attribs['type'] = (isset($_attribs['type']) ? strtolower($_attribs['type']) : '');
         $_attribs['media'] = (isset($_attribs['media']) ? strtolower($_attribs['media']) : '');
 
-        if($_attribs['rel']=='stylesheet' && $_attribs['href'] != '')
+        if ($_attribs['rel']=='stylesheet' && $_attribs['href'] != '')
         {
           $filelist['css'][] = $_attribs;
 
-          if($autoApply) {
+          if ($autoApply) {
             $this->addStylesheet($_attribs['href'], $_attribs['type'], $_attribs['media']);
           }
         }
@@ -249,13 +260,13 @@ class JsCssChunker
     $matches = array();
     preg_match_all('#<script(.*)>.*</script>#Uis', $_contents, $matches);
 
-    if($matches && !empty($matches[0]))
+    if ($matches && !empty($matches[0]))
     {
       foreach($matches[0] as $i=>$entry)
       {
         $attributes = trim($matches[1][$i]);
 
-        if(substr($attributes, -1, 1) == '/')
+        if (substr($attributes, -1, 1) == '/')
         {
           $attributes = substr($attributes, 0, strlen($attributes)-1);
           $attributes = trim($attributes);
@@ -265,11 +276,11 @@ class JsCssChunker
         $_attribs['src'] = (isset($_attribs['src']) ? $_attribs['src'] : '');
         $_attribs['type'] = (isset($_attribs['type']) ? strtolower($_attribs['type']) : '');
 
-        if($_attribs['src'] != '')
+        if ($_attribs['src'] != '')
         {
           $filelist['js'][] = $_attribs;
 
-          if($autoApply) {
+          if ($autoApply) {
             $this->addJavascript($_attribs['src'], $_attribs['type']);
           }
         }
@@ -314,32 +325,32 @@ class JsCssChunker
    */
   protected function validateOptions()
   {
-    if($this->options['baseHref'] == '') {
+    if ($this->options['baseHref'] == '') {
       $pageUrl = $this->pageUrl;
 
       $pageUrlPath = parse_url($pageUrl, PHP_URL_PATH);
 
       // check is filename
-      if(substr($pageUrlPath, -1, 1) != '/') {
+      if (substr($pageUrlPath, -1, 1) != '/') {
         $file = basename($pageUrlPath);
 
-        if(strrpos($file, '.')) {
+        if (strrpos($file, '.')) {
           $pageUrlPath = preg_replace('#'.$file.'$#Uis', '', $pageUrlPath);
         }
       }
 
-      if(substr($pageUrlPath, -1, 1) != '/') {
+      if (substr($pageUrlPath, -1, 1) != '/') {
         $pageUrlPath .= '/';
       }
 
       $this->options['baseHref'] = $pageUrlPath;
     }
 
-    if(substr($this->options['baseHref'], -1, 1) != '/') {
+    if (substr($this->options['baseHref'], -1, 1) != '/') {
       $this->options['baseHref'] .= '/';
     }
 
-    if($this->options['targetUrl'] == '') {
+    if ($this->options['targetUrl'] == '') {
       $this->options['targetUrl'] = $this->options['baseHref'];
       $this->autoTarget = true;
     } else {
@@ -347,17 +358,17 @@ class JsCssChunker
       $targetUrlHost = parse_url($this->options['targetUrl'], PHP_URL_HOST);
       $targetUrlPath = parse_url($this->options['targetUrl'], PHP_URL_PATH);
 
-      if($targetUrlScheme && $targetUrlHost) {
+      if ($targetUrlScheme && $targetUrlHost) {
         $this->rootTargetUrl = $targetUrlScheme.'://'.$targetUrlHost;
         $this->options['targetUrl'] = $targetUrlPath;
         $this->autoTarget = false;
-      } elseif(substr($targetUrlPath, 0, 1) != '/') {
+      } elseif (substr($targetUrlPath, 0, 1) != '/') {
         $this->options['targetUrl'] = '/'.$targetUrlPath;
         $this->autoTarget = false;
       }
     }
 
-    if(substr($this->options['targetUrl'], -1, 1) != '/') {
+    if (substr($this->options['targetUrl'], -1, 1) != '/') {
       $this->options['targetUrl'] .= '/';
     }
 
@@ -379,7 +390,7 @@ class JsCssChunker
     $tmp = explode('?', $file);
     $file = $tmp[0];
 
-    if(!isset($this->_stylesheetFiles[$file])) {
+    if (!isset($this->_stylesheetFiles[$file])) {
       $this->_stylesheetFiles[$file] = array(
         'media'=>$media,
         'type'=>$type
@@ -405,7 +416,7 @@ class JsCssChunker
     $tmp = explode('?', $file);
     $file = $tmp[0];
 
-    if(!isset($this->_javascriptFiles[$file])) {
+    if (!isset($this->_javascriptFiles[$file])) {
       $this->_javascriptFiles[$file] = array(
         'type'=>$type
       );
@@ -427,19 +438,19 @@ class JsCssChunker
    */
   public function getStylesheetHash($includeDomain=false)
   {
-    if(!empty($this->_stylesheetFiles))
+    if (!empty($this->_stylesheetFiles))
     {
       $prefixArr = array(
         '_type' => 'stylesheet',
         'pageUrl' => $includeDomain ? $this->rootUrl : 'GLOBAL',
         'options' => array(
-          $this->getOption('baseHref'),
-          $this->getOption('targetUrl'),
-          $this->getOption('removeEmptyLines'),
-          $this->getOption('stylesheetRecursiv'),
-          $this->getOption('stylesheetCharset'),
-          $this->getOption('stylesheetCompress')
-        )
+      $this->getOption('baseHref'),
+      $this->getOption('targetUrl'),
+      $this->getOption('removeEmptyLines'),
+      $this->getOption('stylesheetRecursiv'),
+      $this->getOption('stylesheetCharset'),
+      $this->getOption('stylesheetCompress')
+      )
       );
       $prefix = serialize($prefixArr);
 
@@ -465,18 +476,18 @@ class JsCssChunker
    */
   public function getJavascriptHash($includeDomain=false)
   {
-    if(!empty($this->_javascriptFiles))
+    if (!empty($this->_javascriptFiles))
     {
       $prefixArr = array(
         '_type' => 'javascript',
         'pageUrl' => $includeDomain ? $this->rootUrl : 'GLOBAL',
         'options' => array(
-          $this->getOption('baseHref'),
-          $this->getOption('targetUrl'),
-          $this->getOption('removeEmptyLines'),
-          $this->getOption('javascriptCompress'),
-          $this->getOption('javascriptCompressorClass')
-        )
+      $this->getOption('baseHref'),
+      $this->getOption('targetUrl'),
+      $this->getOption('removeEmptyLines'),
+      $this->getOption('javascriptCompress'),
+      $this->getOption('javascriptCompressorClass')
+      )
       );
       $prefix = serialize($prefixArr);
 
@@ -502,12 +513,12 @@ class JsCssChunker
     $this->mergeStylesheets();
 
     $savePath = $this->getTargetUrlSavePath();
-    if($savePath) {
+    if ($savePath) {
       $this->addLog(
         "\n".
         '!! Important !!: The Stylesheet must be callable from this path:'.
         "\n\t\t\t -- Folder:      ".
-        $savePath.
+      $savePath.
         "\n\t\t\t -- File (e.g.): ".$savePath.$this->getStylesheetHash().'.css'.
         "\n"
       );
@@ -538,7 +549,9 @@ class JsCssChunker
    */
   private function mergeJavascripts()
   {
-    if(empty($this->_javascriptFiles)) { return ''; }
+    if (empty($this->_javascriptFiles)) {
+      return '';
+    }
 
     $contents = array();
 
@@ -552,11 +565,11 @@ class JsCssChunker
       $this->logFileSize($content, 'javascript', 'before');
 
       if ($content != "") {
-        if($this->getOption('javascriptCompress'))
+        if ($this->getOption('javascriptCompress'))
         {
           $content = $this->compressJavascript($content);
 
-          if($_error = $this->getErrors()) {
+          if ($_error = $this->getErrors()) {
             $this->addLog('ERROR - '.$_error);
           } else {
             $this->addLog('Javascript - Compressed content');
@@ -573,13 +586,13 @@ class JsCssChunker
       }
     }
 
-    if(!empty($contents))
+    if (!empty($contents))
     {
       $content = implode("\n\n", $contents);
       $content = trim($content);
     }
 
-    if(!empty($content) && $this->getOption('removeEmptyLines'))
+    if (!empty($content) && $this->getOption('removeEmptyLines'))
     {
       $content = $this->removeEmptyLines($content);
       $this->addLog('Javascript - Removed empty lines');
@@ -601,7 +614,9 @@ class JsCssChunker
    */
   private function mergeStylesheets()
   {
-    if(empty($this->_stylesheetFiles)) { return ''; }
+    if (empty($this->_stylesheetFiles)) {
+      return '';
+    }
 
     $contents = array();
 
@@ -623,20 +638,20 @@ class JsCssChunker
     $content = preg_replace('/@charset\s+[\'"](\S*)\b[\'"];/i', '', $content);
     $this->addLog('Stylesheet - remove all @charset rules for browser compatibility');
 
-    if($charset = $this->getOption('stylesheetCharset'))
+    if ($charset = $this->getOption('stylesheetCharset'))
     {
       // add @charset to stylesheet in FIRST LINE only (important with linebreak for safari)
       $content = "@charset \"".$charset."\";\n".$content;
       $this->addLog('Stylesheet - Set @charset ('.$charset.') in first line');
     }
 
-    if($this->getOption('stylesheetCompress'))
+    if ($this->getOption('stylesheetCompress'))
     {
       $content = $this->compressStylesheet($content);
       $this->addLog('Stylesheet - Compressed content');
     }
 
-    if($this->getOption('removeEmptyLines'))
+    if ($this->getOption('removeEmptyLines'))
     {
       $content = $this->removeEmptyLines($content);
       $this->addLog('Stylesheet - Removed empty lines');
@@ -653,6 +668,8 @@ class JsCssChunker
   /**
    * Compress Stylesheet contents
    *
+   * (Note: Some rules are inspired from the YUI-CSS-Compressor)
+   *
    * @access private
    * @param string $content Stylesheet content
    * @return string compressed Stylesheet content
@@ -661,33 +678,75 @@ class JsCssChunker
   {
     $content = $this->stripStylesheetComments($content);
 
-    $replace = array(
-      "#\s\s+#"      => " "   // Strip double-whitespaces,linebreaks,tabs
-    );
-    $search = array_keys($replace);
+    // Strip whitespaces.
+    $content = preg_replace('/\s+/', ' ', $content);
 
-    $search = array_keys($replace);
-    $content = preg_replace($search, $replace, $content);
-    $content = str_replace(array("\n", "\r"), " ", $content);
+    // Remove the spaces before the things that should not have spaces before them.
+    $content = preg_replace('/\s+({|}|;)/', '$1', $content);
 
-    $replace = array(
-      ": " => ":", // Srip spaces
-      " :" => ":", // Srip spaces
-      "; " => ";", // Srip spaces
-      " ;" => ";", // Srip spaces
-      "{ " => "{", // Srip spaces
-      " {" => "{", // Srip spaces
-      "} " => "}", // Srip spaces
-      " }" => "}", // Srip spaces
-      ", " => ",", // Srip spaces
-      " ," => ",", // Srip spaces
-      ";}" => "}", // Strip last semicolons.
-      "@"  => "\n@", // @ Rules on each line for a small overview of media types.
-      "}"  => "} " // One withespace after closing
-    );
+    // Remove the spaces after the things that should not have spaces after them.
+    $content = preg_replace('/([!{}:;>+\(\[,])\s+/', '$1', $content);
 
-    $search = array_keys($replace);
-    $content = str_replace($search, $replace, $content);
+    // Remove unnecessary semicolons
+    $content = preg_replace('/;+\}/', '}', $content);
+
+    // Replace 0(px,em,%) with 0.
+    $content = preg_replace('/([\s:])(0)(px|em|%|in|cm|mm|pc|pt|ex)/i', '$1$2', $content);
+
+    // Replace 0 0 0 0; with 0.
+    $content = preg_replace('/:0 0 0 0(;|\})/', ':0$1', $content);
+    $content = preg_replace('/:0 0 0(;|\})/', ':0$1', $content);
+    $content = preg_replace('/:0 0(;|\})/', ':0$1', $content);
+
+    // Replace 0.6 to .6, but only when preceded by : or a white-space
+    $content = preg_replace('/(:|\s)0+\.(\d+)/', '$1.$2', $content);
+
+    // Shorten colors from rgb(51,102,153) to #336699
+    // This makes it more likely that it'll get further compressed in the next step.
+    preg_match_all('/rgb\s*\(\s*([0-9,\s]+)\s*\)/i', $content, $matches);
+    if (!empty($matches[0]))
+    {
+      $rgbToHex = array('s' => array(), 'r' => array());
+
+      foreach($matches[0] as $k => $v) {
+        $rgb = explode(',', $matches[1][$k]);
+
+        $hex = "#";
+        $hex .= str_pad(dechex((int)$rgb[0]), 2, "0", STR_PAD_LEFT);
+        $hex .= str_pad(dechex((int)$rgb[1]), 2, "0", STR_PAD_LEFT);
+        $hex .= str_pad(dechex((int)$rgb[2]), 2, "0", STR_PAD_LEFT);
+
+        if(!in_array($v, $rgbToHex['s'])) {
+          $rgbToHex['s'][] = $v;
+          $rgbToHex['r'][] = $hex;
+        }
+      }
+
+      if (!empty($rgbToHex)) {
+        $content = str_replace($rgbToHex['s'], $rgbToHex['r'], $content);
+      }
+    }
+
+    // Shorten colors from #AABBCC to #ABC.
+    $content = $this->_compressHexColors($content);
+
+    // Shorter opacity IE filter
+    $content = preg_replace('/progid:DXImageTransform\.Microsoft\.Alpha\(Opacity=/i', 'alpha(opacity=', $content);
+
+    // Retain space for special IE6 cases
+    $content = preg_replace('/:first-(line|letter)(\{|,)/', ':first-$1 $2', $content);
+
+    // Remove empty rules
+    $content = preg_replace('/[^\};\{\/]+\{\}/', '', $content);
+
+    // Replace multiple semi-colons in a row by a single one
+    $content = preg_replace('/;;+/', ';', $content);
+
+    // Group same consecutive and remove empty @media rules
+    $content = $this->_groupCssMediaRules($content);
+
+    // @ Rules on each line for a small overview of media types and '@charset only in first line'.
+    $content = str_replace("@", "\n@", $content);
 
     return trim($content);
   }
@@ -702,24 +761,120 @@ class JsCssChunker
   protected function stripStylesheetComments($content='')
   {
     // handle hacks before
-    $content = str_replace('/**/', '[[HACK__IE_EMPTY_COMMENT]]', $content);
+    // preserve empty comment for value (Box-Model-Hack)
+    $content = preg_replace('#/\*\s*\*/\s*:#', '___JSCSSCHUNKER_REPLACETOKEN_HACK_IE_EMPTY_COMMENT___:', $content);
+    $content = preg_replace('#:\s*/\*\s*\*/#', ':___JSCSSCHUNKER_REPLACETOKEN_HACK_IE_EMPTY_COMMENT___', $content);
 
     // strip comments
     $content = preg_replace("#/\*.+\*/#sU", "", $content);
 
     // handle hacks after
-    $content = str_replace('[[HACK__IE_EMPTY_COMMENT]]', '/**/', $content);
+    $content = str_replace('___JSCSSCHUNKER_REPLACETOKEN_HACK_IE_EMPTY_COMMENT___', '/**/', $content);
 
     return $content;
   }
 
+  /**
+   * Shorten colors from #AABBCC to #ABC.
+   *
+   * @access private
+   * @param string $content Css Content
+   * @return string Replaced Css Content
+   */
+  private function _compressHexColors($content)
+  {
+    return preg_replace_callback('/([^=])#([a-f\\d])\\2([a-f\\d])\\3([a-f\\d])\\4([\\s;\\}])/i', array($this, '_compressHexColors_Callback'), $content);
+  }
+
+  /**
+   * Callback Method for preg_replace_callback in _compressHexColors
+   *
+   * @access private
+   * @param array $matches from preg_replace_callback
+   * @return replaced The shorten Hex Code
+   */
+  private function _compressHexColors_Callback($m) {
+    return (string)($m[1] . '#' . strtolower($m[2] . $m[3] . $m[4]) . $m[5]);
+  }
+
+  /**
+   * Group same consecutive and remove empty CSS @media rules
+   *
+   * @access private
+   * @param string $content Css Content
+   * @return string Replaced Css Content
+   */
+  private function _groupCssMediaRules($content)
+  {
+    $onlyPrintMedia = '';
+    $mixedMedia = '';
+    $lastFoundMedia = '';
+
+    preg_match_all('/@media\s+(.*)\s?\{(.*)\}\s?\}/Uis', $content, $matches);
+
+    if (!empty($matches[0]))
+    {
+      foreach($matches[0] as $k => $v)
+      {
+        $media = trim($matches[1][$k]);
+        $styles = trim($matches[2][$k]);
+
+        // remove empty media rules
+        if (empty($styles)) {
+          continue;
+        }
+
+        if ($media == 'print')
+        {
+          if (empty($onlyPrintMedia)) {
+            $onlyPrintMedia = '@media print{';
+          }
+          $onlyPrintMedia .= $styles.'}';
+        }
+        else
+        {
+          if (empty($mixedMedia) || empty($lastFoundMedia) || $lastFoundMedia != $media)
+          {
+            if (!empty($mixedMedia)) {
+              $mixedMedia .= '}';
+            }
+            $mixedMedia .= '@media '.$media.'{';
+            $mixedMedia .= $styles.'}';
+
+            $lastFoundMedia = $media;
+          } else {
+            $mixedMedia .= $styles.'}';
+          }
+        }
+      }
+
+      $_tmp = '';
+      if (!empty($mixedMedia)) {
+        $_tmp .= $mixedMedia . '}';
+      }
+      if (!empty($onlyPrintMedia)) {
+        $_tmp .= $onlyPrintMedia . '}';
+      }
+      $content = $_tmp;
+    }
+
+    return $content;
+  }
+
+  /**
+   * Method to check if JavaScript code is already compressed
+   *
+   * @access private
+   * @param string $jscode Contents of the Javascript
+   * @return boolean
+   */
   private function isJavascriptCompressed($jscode='')
   {
-    if($jscode == '') {
+    if ($jscode == '') {
       return false;
     }
 
-    if(strpos($jscode, 'eval(function(p,a,c,k,e,d)') !== false) {
+    if (strpos($jscode, 'eval(function(p,a,c,k,e,d)') !== false) {
       return true;
     }
 
@@ -735,10 +890,10 @@ class JsCssChunker
    */
   private function compressJavascript($content)
   {
-    if(!empty($content))
+    if (!empty($content))
     {
       // an easy check of code its already compressed
-      if($this->isJavascriptCompressed($content)) {
+      if ($this->isJavascriptCompressed($content)) {
         return trim($content);
       }
 
@@ -749,18 +904,18 @@ class JsCssChunker
       {
         $compressorClass = $this->getOption('javascriptCompressorClass');
 
-        if(!class_exists($compressorClass))
+        if (!class_exists($compressorClass))
         {
           $compressorFile = JSCSSCHUNKER_COMPRESSOR_DIR.DIRECTORY_SEPARATOR.$compressorClass.'.php';
 
-          if(file_exists($compressorFile)) {
+          if (file_exists($compressorFile)) {
             require_once($compressorFile);
           } else {
             $this->addError('Javascript compressor file not found: '.$compressorFile);
           }
         }
 
-        if(class_exists($compressorClass))
+        if (class_exists($compressorClass))
         {
           ob_start();
           ob_implicit_flush(false);
@@ -777,16 +932,21 @@ class JsCssChunker
               $packer = new JavaScriptPacker($content);
               $compressedContent = $packer->pack();
               break;
-
+            case 'YUICompressor':
+              $compressedContent = YUICompressor::minify($content, array(
+                'javabin' => $this->getOption('javaBin', 'java'),
+                'type' => 'js'
+                ));
+                break;
             default:
               $this->addError('Compressor not implemented: '.$compressorClass);
-              break;
+            break;
           }
 
           $errors = trim(ob_get_contents());
           ob_end_clean();
 
-          if($errors) {
+          if ($errors) {
             $this->addError('Javascript Compressor Error: '.$errors);
           }
         }
@@ -802,13 +962,13 @@ class JsCssChunker
       }
 
       // only use compressedContent if has contents
-      if($compressedContent)
+      if ($compressedContent)
       {
         $sizeAfter = function_exists('mb_strlen') ? mb_strlen($compressedContent) : strlen($compressedContent);
         $diffSize = $sizeBefore - $sizeAfter;
 
         // compress/minify only if size after lesser then before
-        if($diffSize > 1) {
+        if ($diffSize > 1) {
           $content = $compressedContent;
         }
       }
@@ -829,10 +989,10 @@ class JsCssChunker
     $scheme = parse_url($url, PHP_URL_SCHEME);
     $host = parse_url($url, PHP_URL_HOST);
 
-    if(!$scheme && !$host)
+    if (!$scheme && !$host)
     {
       $url = $this->cleanPath($url);
-      if(substr($url, 0, 1) == '/') {
+      if (substr($url, 0, 1) == '/') {
         $url = $this->rootUrl.$url;
       } else {
         $url = $this->rootUrl.$this->options['baseHref'].$url;
@@ -863,15 +1023,27 @@ class JsCssChunker
    */
   private function _loadStylesheets($file, &$fileTree=array())
   {
+    static $loadeFiles = array();
+
     $filename = $this->getFullUrlFromBase($file);
     $filename = $this->getRealpath($filename);
+
+    // prevent loops
+    if (in_array($filename, $loadeFiles)) {
+      return '';
+    }
+
     $fileTree[$filename] = array();
 
     $content = $this->getFileContents($filename);
     $this->logFileSize($content, 'stylesheet', 'before');
     $content = trim($content);
 
-    if (empty($content)) { return ''; }
+    if (empty($content)) {
+      return '';
+    }
+
+    $loadeFiles[] = $filename;
 
     // Is important to remove comments before search @import rules
     $content = $this->stripStylesheetComments($content);
@@ -879,8 +1051,24 @@ class JsCssChunker
     $base = dirname($filename);
 
     preg_match_all('/@import\s*(?:url\()?[\'"]?(?![a-z]+:)([^\'"\()]+)[\'"]?\)?(.*);/iS', $content, $matches);
-    $relpaths = @$matches[1];
-    $relpathsMedia = @$matches[2];
+
+    // validate results
+    if (!empty($matches[0]))
+    {
+      foreach($matches[1] as $k => $v)
+      {
+        $v = strtolower($v);
+        if (empty($v) || $v == 'url')
+        {
+          foreach($matches as $mk=>$mv) {
+            unset($matches[$mk][$k]);
+          }
+        }
+      }
+    }
+
+    $relpaths = (!empty($matches[0]) ? $matches[1] : array());
+    $relpathsMedia = (!empty($matches[0]) ? $matches[2] : array());
 
     $content = $this->_replaceCSSPaths($content, $base);
 
@@ -899,7 +1087,7 @@ class JsCssChunker
         // remove all charset definitions
         $icont = preg_replace('/@charset\s+[\'"](\S*)\b[\'"];/i', '', $icont);
 
-        if(!empty($icont))
+        if (!empty($icont))
         {
           /**
            * If the imported file has defined media
@@ -910,19 +1098,19 @@ class JsCssChunker
           $importMedia = trim($relpathsMedia[$key]);
 
           // add media all no media set
-          if(strpos($icont, '@')===false)
+          if (strpos($icont, '@')===false)
           {
             // add media query from @import if available or media all as fallback
-            if($importMedia) {
+            if ($importMedia) {
               $icont = '@media '.$importMedia.' { '.$icont.' }';
             } else {
               $icont = '@media all { '.$icont.' }';
             }
           }
-          elseif($importMedia && strpos($icont, '@')===false)
+          elseif ($importMedia && strpos($icont, '@')===false)
           {
-             // add media query from @import additional if available
-             $icont = str_replace('@media ', '@media '.$importMedia.', ', $icont);
+            // add media query from @import additional if available
+            $icont = str_replace('@media ', '@media '.$importMedia.', ', $icont);
           }
         }
 
@@ -963,7 +1151,7 @@ class JsCssChunker
   {
     $path = $this->cleanPath($path);
 
-    if(substr($path, -1, 1) != '/') {
+    if (substr($path, -1, 1) != '/') {
       $path .= '/';
     }
 
@@ -1009,14 +1197,16 @@ class JsCssChunker
     $baseUrl = $this->rootUrl.$this->options['baseHref'];
     $targetUrl = $this->getOption('targetUrl');
 
-    if(!$targetUrlFull)
+    if (!$targetUrlFull)
     {
       $targetUrlFull = $this->rootUrl.parse_url($targetUrl, PHP_URL_PATH);
       $targetUrlArr = explode('/', $targetUrl);
 
       $tmpArr = array();
       foreach($targetUrlArr as $k=>$v) {
-        if($v != '') { $tmpArr[] = $v; }
+        if ($v != '') {
+          $tmpArr[] = $v;
+        }
       }
       $targetUrlArr = $tmpArr;
 
@@ -1024,19 +1214,21 @@ class JsCssChunker
 
       $tmpArr = array();
       foreach($baseHrefArr as $k=>$v) {
-        if($v != '') { $tmpArr[] = $v; }
+        if ($v != '') {
+          $tmpArr[] = $v;
+        }
       }
       $baseHrefArr = $tmpArr;
     }
 
 
-    if(parse_url($url, PHP_URL_SCHEME) && !preg_match('#^'.$targetUrl.'#', $url))
+    if (parse_url($url, PHP_URL_SCHEME) && !preg_match('#^'.$targetUrl.'#', $url))
     {
       // add directory difference for full replace baseUrl to targetURL
       $diffPath = $targetUrl.str_repeat('../', count($targetUrlArr));
       $url = preg_replace('#'.$this->rootUrl.'#Uis', $this->rootUrl.$diffPath, $url);
 
-      if($this->options['baseHref'] != $targetUrl) {
+      if ($this->options['baseHref'] != $targetUrl) {
         $url = preg_replace('#^'.$targetUrlFull.'#', '', $url);
       } else {
         $url = preg_replace('#^'.$baseUrl.'#', $targetUrl, $url);
@@ -1048,12 +1240,12 @@ class JsCssChunker
     // clean URL-Path
     $url = $this->cleanPath($url);
 
-    if($this->options['baseHref'] != '/' && $baseHrefArr > 1) {
-      if(strpos($url, '..'.$this->options['baseHref']) ) {
+    if ($this->options['baseHref'] != '/' && $baseHrefArr > 1) {
+      if (strpos($url, '..'.$this->options['baseHref']) ) {
         $baseHrefCount = count($baseHrefArr);
         $diff = str_repeat('/..', $baseHrefCount).$this->options['baseHref'];
 
-        if($diff) {
+        if ($diff) {
           $url = preg_replace('#'.$diff.'#U', '/', $url, 1);
         }
       }
@@ -1073,7 +1265,9 @@ class JsCssChunker
   public function cleanPath($path='', $ds='/')
   {
     $path = trim($path);
-    if(empty($path)) { return; }
+    if (empty($path)) {
+      return;
+    }
 
     if (!empty($path))
     {
@@ -1085,7 +1279,7 @@ class JsCssChunker
       $path = preg_replace('#[/\\\\]+#', $ds, $path);
       $path = $this->getRealPath($path);
 
-      if($scheme && $host) {
+      if ($scheme && $host) {
         $path = $scheme.'://'.$host.$path;
       }
     }
@@ -1103,7 +1297,9 @@ class JsCssChunker
   private function getRealpath($path='')
   {
     $path = trim($path);
-    if(empty($path)) { return; }
+    if (empty($path)) {
+      return;
+    }
 
     $scheme = parse_url($path, PHP_URL_SCHEME);
     $host = parse_url($path, PHP_URL_HOST);
@@ -1114,7 +1310,9 @@ class JsCssChunker
 
     foreach($parts as $i=>$dir)
     {
-      if ($dir=='' || $dir=='.') { continue; }
+      if ($dir=='' || $dir=='.') {
+        continue;
+      }
 
       //if ($dir=='..' && $i>0 && end($tmp)!='..') {
       if ($dir=='..' && $i>0 && end($tmp)!='..' && !empty($tmp)) {
@@ -1126,7 +1324,7 @@ class JsCssChunker
 
     $path = ($path{0}=='/' ? '/' : '').implode('/', $tmp);
 
-    if($scheme && $host) {
+    if ($scheme && $host) {
       $path = $scheme.'://'.$host.$path;
     }
 
@@ -1158,7 +1356,7 @@ class JsCssChunker
   {
     static $state;
 
-    if($state==null || empty($this->_loadMethod))
+    if ($state==null || empty($this->_loadMethod))
     {
       $state = false;
 
@@ -1181,7 +1379,7 @@ class JsCssChunker
         }
       }
 
-      if($this->_loadMethod) {
+      if ($this->_loadMethod) {
         $state = true;
       }
     }
@@ -1200,7 +1398,7 @@ class JsCssChunker
    */
   public function hasFoldersModifications($dirs, $compareFile, $filter='[.css|.js]$')
   {
-    if(!is_array($dirs)) {
+    if (!is_array($dirs)) {
       $dirs = array($dirs);
     }
 
@@ -1210,17 +1408,17 @@ class JsCssChunker
     {
       $lm = $this->getLastModifiedFileByFolder($_dir, $filter);
 
-      if($lm>$lastModified) {
+      if ($lm>$lastModified) {
         $lastModified = $lm;
       }
     }
 
-    if($lastModified)
+    if ($lastModified)
     {
       $compareFile = $this->cleanPath($compareFile);
       $filetime = @filemtime($compareFile);
 
-      if($filetime && $lastModified > $filetime) {
+      if ($filetime && $lastModified > $filetime) {
         return true;
       }
     }
@@ -1242,13 +1440,13 @@ class JsCssChunker
     $path = dirname($this->cleanPath($path).'/.');
 
     // check dir exists on local filesystem
-    if(!is_dir($path)) {
+    if (!is_dir($path)) {
       return false;
     }
 
     $files = self::_filesRecursiv($path, $filter);
 
-    if(empty($files))
+    if (empty($files))
     {
       // check the directory when no files was found in path
       // not supported on all filesystems but much enough as fallback too
@@ -1257,10 +1455,10 @@ class JsCssChunker
     else
     {
       array_multisort(
-          array_map( 'filemtime', $files ),
-          SORT_NUMERIC,
-          SORT_DESC, // newest first, or `SORT_ASC` for oldest first
-          $files
+      array_map( 'filemtime', $files ),
+      SORT_NUMERIC,
+      SORT_DESC, // newest first, or `SORT_ASC` for oldest first
+      $files
       );
 
       $file     = array_shift($files);
@@ -1294,7 +1492,7 @@ class JsCssChunker
 
         if (is_dir($fullpath)) {
           $arr = array_merge($arr, self::_filesRecursiv($fullpath, $filter));
-        } elseif(preg_match("/$filter/", $file)) {
+        } elseif (preg_match("/$filter/", $file)) {
           $arr[] = $fullpath;
         }
       }
@@ -1321,12 +1519,12 @@ class JsCssChunker
     $origLoadMethod = $this->_loadMethod;
 
     // force file_get_contents if file exists on local filesystem
-    if(!preg_match('#^(http|https)://#Uis', $file) && file_exists($file) && is_readable($file)) {
+    if (!preg_match('#^(http|https)://#Uis', $file) && file_exists($file) && is_readable($file)) {
       $this->_loadMethod = 'FILEGETCONTENTS';
     }
 
     $authOptions = $this->getOption('httpAuth');
-    if($authOptions)
+    if ($authOptions)
     {
       $httpAuth = true;
       $httpAuthType = isset($authOptions['type']) ? $authOptions['type'] : 'ANY';
@@ -1364,7 +1562,7 @@ class JsCssChunker
         {
           @fputs($fp, "GET /".$filePath." HTTP/1.1\r\n");
           @fputs($fp, "HOST: ".$fileHost."\r\n");
-          if($isHttpAuth) {
+          if ($isHttpAuth) {
             @fputs($fp, "Authorization: ".trim($httpAuth)."\r\n");
           }
           @fputs($fp, "User-Agent: Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1) Gecko/20061010 Firefox/2.0\r\n");
@@ -1378,7 +1576,7 @@ class JsCssChunker
           }
           fclose($fp);
 
-          if($response)
+          if ($response)
           {
             // split headers from content
             $response = explode("\r\n\r\n", $response);
@@ -1407,7 +1605,7 @@ class JsCssChunker
           curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
           curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
 
-          if($isHttpAuth) {
+          if ($isHttpAuth) {
             $_type = strtoupper($httpAuthType);
 
             switch($_type) {
@@ -1423,14 +1621,14 @@ class JsCssChunker
               default:
               case 'BASIC':
                 curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
-                break;
+              break;
             }
 
             curl_setopt($ch, CURLOPT_USERPWD, $httpAuthUser.':'.$httpAuthPass);
           }
 
 
-          if($this->_phpSafeMode || $this->_phpOpenBasedir)
+          if ($this->_phpSafeMode || $this->_phpOpenBasedir)
           {
             // follow location/redirect does not work if safe_mode enabled or open_basedir is set
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 0);
@@ -1452,8 +1650,8 @@ class JsCssChunker
             $this->addError('cURL - Error load file (http-code: '.$http_code.') - '.$file);
           }
 
-          if(curl_errno($ch)) {
-            $this->addError('cURL - Error: '.curl_error($ch));
+          if (curl_errno($ch)) {
+            $this->addError('cURL - Error: '.curl_error($ch).' - '.$file);
           }
 
           curl_close($ch);
@@ -1465,7 +1663,7 @@ class JsCssChunker
 
     $this->_loadMethod = $origLoadMethod;
 
-    if(empty($content)) {
+    if (empty($content)) {
       $this->addLog('Empty content: '. $file);
     } else {
       $this->addLog('File contents loaded: '. $file);
@@ -1569,18 +1767,18 @@ class JsCssChunker
    */
   protected function logFileSize($str, $type, $timeline)
   {
-    if(!$this->getOption('logFilesize', false)) {
+    if (!$this->getOption('logFilesize', false)) {
       return;
     }
 
-    if($this->sizeLog == false) {
+    if ($this->sizeLog == false) {
       $this->sizeLog = array(
         'before'=> array('stylesheet'=>0, 'javascript'=>0),
         'after'=> array('stylesheet'=>0, 'javascript'=>0)
       );
     }
 
-    if(function_exists('mb_strlen'))
+    if (function_exists('mb_strlen'))
     {
       $_multibyte = true;
       $_size = mb_strlen($str); // multibyte, if possible
@@ -1591,12 +1789,12 @@ class JsCssChunker
       $_size = strlen($str);
     }
 
-    if($_size)
+    if ($_size)
     {
-      if(!isset($this->sizeLog[$timeline])) {
+      if (!isset($this->sizeLog[$timeline])) {
         $this->sizeLog[$timeline] = array();
       }
-      if(!isset($this->sizeLog[$timeline][$type])) {
+      if (!isset($this->sizeLog[$timeline][$type])) {
         $this->sizeLog[$timeline][$type] = 0;
       }
 
@@ -1704,7 +1902,7 @@ class JsCssChunker
     return get_object_vars($this);
   }
 
-  //public function __destruct() {
-  //  unset($this);
-  //}
+  // public function __destruct() {
+  //   unset($this);
+  // }
 }
