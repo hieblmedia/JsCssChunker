@@ -65,7 +65,7 @@ class JsCssChunker
 		 *
 		 * If set 'forceHTTPS' all absolute http:// links become https://.
 		 */
-		'protokolLess' => false, // (false, true or 'forceHTTPS')
+		'protocolLess' => false, // (false, true or 'forceHTTPS')
 
 		// If false the files are only merged
 		'javascriptCompress' => false,
@@ -742,18 +742,18 @@ class JsCssChunker
 			$this->addLog('Stylesheet - Removed empty lines');
 		}
 
-		if ($protokolLess = $this->getOption('protokolLess'))
+		if ($protocolLess = $this->getOption('protocolLess'))
 		{
-			if ($protokolLess === 'forceHTTPS')
+			if ($protocolLess === 'forceHTTPS')
 			{
 				$content = preg_replace('/http:\/\//i', 'https://', $content);
-				$this->addLog('Stylesheet - protokolLess: Forced absolute http:// links to https://');
+				$this->addLog('Stylesheet - protocolLess: Forced absolute http:// links to https://');
 			}
 			else
 			{
 				$content = preg_replace('/(http:\/\/|https:\/\/)/i', '//', $content);
 
-				$this->addLog('Stylesheet - protokolLess: Replaced all absolute http(s)://path/xyz links with //path/xyz');
+				$this->addLog('Stylesheet - protocolLess: Replaced all absolute http(s)://path/xyz links with //path/xyz');
 			}
 		}
 
@@ -1333,7 +1333,7 @@ class JsCssChunker
 
 		if (preg_match('/^\/\/.*/', $matches[3]))
 		{
-			// (Special case) Protokol-Relative Url (url without protokol like: //domain.tld/path/file.png)
+			// (Special case) Protocol-Relative Url (url without protocol like: //domain.tld/path/file.png)
 			return $matches[1] . '[[CALLBACK_URLREPLACED]](' . $matches[3] . ')';
 		}
 		else
