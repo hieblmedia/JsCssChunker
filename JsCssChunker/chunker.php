@@ -1207,6 +1207,8 @@ class JsCssChunker
 		{
 			foreach ($relpaths as $key => $relfile)
 			{
+				$this->_replaceCSSPaths($matches[0][$key], $base);
+
 				$importPath = $base . '/' . $relfile;
 				$importPath = $this->getRealpath($importPath);
 
@@ -1305,11 +1307,32 @@ class JsCssChunker
 		// Remove linebreaks to can find multiple url sources (comma seperated)
 		$content = str_replace(array("\n", "\r"), '', $content);
 
-		// Replace and shortend urls with pathscope
-		$regex = '/([,:].*)url\(([\'"]?)(?![a-z]+:)([^\'")]+)[\'"]?\)/iU'; // only relative urls
+		// Strip @import
+		$regex = '/@import\s+(?:url\s*\(\s*[\'"]?|[\'"])([^"^\'^\s]+)(?:[\'"]?\s*\)|[\'"])\s*([\w\s\(\)\d\:,\-]*);/i';
+		preg_match_all($regex, $content, $importMatches);
+
+		if ($importMatches && !empty($importMatches[0]))
+		{
+			foreach ($importMatches[0] as $k => $v)
+			{
+				$content = str_replace($v, '[[_replaceCSSPaths_@import_key_' . $k . ']]', $content);
+			}
+		}
+
+		// Replace and shortend urls with pathscop
+		$regex = '/([,:].*)url\(([\'"]?)(?![a-z]+:)([^\'")]+)[\'"]?\)/Ui'; // only relative urls (and without data:)
 
 		$content = preg_replace_callback($regex, array( &$this, '_replaceCSSPaths_Callback'), $content);
 		$content = str_replace('[[CALLBACK_URLREPLACED]]', 'url', $content);
+
+		// Revert @import
+		if ($importMatches && !empty($importMatches[0]) && strpos($content, '[[_replaceCSSPaths_@import_key_') !== false)
+		{
+			foreach ($importMatches[0] as $k => $v)
+			{
+				$content = str_replace('[[_replaceCSSPaths_@import_key_' . $k . ']]', $importMatches[0][$k], $content);
+			}
+		}
 
 		// Reset pathscope
 		$this->pathscope = '';
