@@ -1,8 +1,5 @@
-
 @import url(../_files/yaml/core/base.css);
-@import url(css/basemod.css);
-@import url(css/content.css);
-@import url(css/print.css);
+@import url(css/basemod.css);@import url(css/content.css);@import url(css/print.css);
 
 /* test for media query defined on @import */
 @import url(css/iphone.css) only screen and (max-device-width: 480px);

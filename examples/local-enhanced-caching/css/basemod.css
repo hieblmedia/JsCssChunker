@@ -16,6 +16,69 @@
 
 @media screen, projection
 {
+  /* testing consecutive media name rule grouping */
+  .ma{ color: #aaa}
+}
+@media screen, projection
+{
+  /* testing consecutive media name rule grouping */
+  .mb{ color: #bbb;}
+}
+
+@media screen, projection
+{
+  /* Test cases */
+  p :link { color: #eeeeee; }
+  #AABBCC { background: #aabbcc; color: #AABBCC; filter: chroma(color="#FFFFFF"); }
+
+  .test-general {
+    width: 5px ;; /* double semi-colon */
+    color: #fff;
+  }
+
+  /* remove units have zero value */
+  .test-zero {
+    border-top: 0px solid black;
+    border-left: 0em solid black;
+    border-bottom: 0% solid green;
+
+    padding: 0px 0em 6pt 0%;
+    margin: 0px 0em 6pt 0%;
+  }
+  .test-zero2 {
+    padding: 0px 0em 6pt;
+    margin: 3px 0em 0pt;
+  }
+  .test-zero3 {
+    padding: 2px 0em;
+    margin: 0px 3em;
+  }
+  .test-zero-all {
+    padding: 0px 0em 0pt 0%;
+    margin: 0px 0em 0pt 0%;
+  }
+
+  .test-remove-zero-before-commata {
+    padding: 0px 0.4em .4pt 0%;
+    margin: 0px 0.6em 1.2pt 0%;
+  }
+
+  .test-empty {  }
+  .test-empty-with-comment { /* comment */  }
+
+  /* ie6 must have a space before the { */
+  .test:first-line {color: black;}
+  .test:first-letter {color: black;}
+
+  /* ms filters short alpha transparancy */
+  .ie-opacity-alpha-filter {
+    -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=90)";
+    filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=30)";
+  }
+
+
+
+
   /**
    * (en) Forcing vertical scrollbars in IE8, Firefox, Webkit & Opera
    * (de) Erzwingen vertikaler Scrollbalken in IE8, Firefox, Webkit & Opera
