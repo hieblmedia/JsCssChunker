@@ -1,7 +1,0 @@
-/* "Yet Another Multicolumn Layout" v3.2 (c) by Alexander Hass, Dirk Jesse (http://www.yaml.de)
-* $Revision$ $Date$ */
-@media all
-{
-#nav{direction:ltr}
-#nav *{direction:rtl}
-}
