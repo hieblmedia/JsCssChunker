@@ -8,8 +8,6 @@
  *
  * -----------------------------------------------------------------------------
  *
- * @version    Id: $Id$
- *
  * @package    JsCssChunker
  *
  * @author     Reinhard Hiebl <reinhard@hieblmedia.com>

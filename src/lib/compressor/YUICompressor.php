@@ -1,6 +1,4 @@
 <?php
-namespace JsCssChunker\Compressor;
-
 /**
  * JsCssChunker
  *
@@ -10,8 +8,6 @@ namespace JsCssChunker\Compressor;
  *
  * -----------------------------------------------------------------------------
  *
- * @version    Id: $Id$
- *
  * @package    JsCssChunker
  *
  * @author     Reinhard Hiebl <reinhard@hieblmedia.com>
@@ -19,6 +15,8 @@ namespace JsCssChunker\Compressor;
  * @license    http://www.opensource.org/licenses/gpl-3.0.html GNU General Public License, version 3.0 (GPLv3)
  * @link       http://chunker.hieblmedia.net/
  */
+
+namespace JsCssChunker\Compressor;
 
 /**
  * Process handler for java to execute the .jar file for the YUI-Compressor

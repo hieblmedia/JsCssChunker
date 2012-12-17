@@ -8,8 +8,6 @@
  *
  * -----------------------------------------------------------------------------
  *
- * @version    Id: $Id$
- *
  * @package    JsCssChunker
  *
  * @author     Reinhard Hiebl <reinhard@hieblmedia.com>
@@ -799,6 +797,8 @@ abstract class Base
 			return '';
 		}
 
+		// @TODO: Preserve new lines for /*! important comments
+
 		$contents = array();
 
 		$this->_stylesheetFileTree = array();
@@ -824,6 +824,36 @@ abstract class Base
 			$content = $this->compressStylesheet($content);
 			$this->addLog('Stylesheet - Compressed content');
 		}
+
+		// Special rules should be always first
+		$toTheTopRules = array(
+			// @font-face: Good for browser performance, compatibility and reduce flickering
+			'/@font-face\s*{(.*)}/Uis',
+
+			// @import rules: Is a bit risk with CSS specificity, but good for browser performance, compatibility
+			'/@import\s+(?:url\s*\(\s*[\'"]?|[\'"])([^"^\'^\s]+)(?:[\'"]?\s*\)|[\'"])\s*([\w\s\(\)\d\:,\-]*);/i'
+		);
+		foreach ($toTheTopRules as $regex)
+		{
+			$toTheTopRulesResults = array();
+
+			if (preg_match_all($regex, $content, $matches))
+			{
+				foreach ($matches[0] as $_rule)
+				{
+					$toTheTopRulesResults[] = $_rule;
+					$content = str_replace($_rule, '', $content);
+				}
+			}
+
+			if ($toTheTopRulesResults)
+			{
+				$content = implode("\n", $toTheTopRulesResults) . "\n" . $content;
+			}
+		}
+
+		// @TODO: very complicated becuase of no media css, currently disabled
+		// $content = $this->_groupCssMediaRules($content);
 
 		if ($charset = $this->getOption('stylesheetCharset'))
 		{
@@ -852,6 +882,9 @@ abstract class Base
 				$this->addLog('Stylesheet - protocolRelative: Replaced all absolute http(s)://path/xyz links with //path/xyz');
 			}
 		}
+
+		// New line for each @media rule
+		$content = str_replace('@media', "\n@media", $content);
 
 		$this->stylesheetBuffer = $content;
 		$this->logFileSize($content, 'stylesheet', 'after');
@@ -958,32 +991,6 @@ abstract class Base
 	}
 
 	/**
-	 * Shorten colors from #AABBCC to #ABC.
-	 *
-	 * @param   string  $content  Css Content
-	 *
-	 * @access private
-	 * @return string Replaced Css Content
-	 */
-	private function _compressHexColors($content)
-	{
-		return preg_replace_callback('/([^=])#([a-f\\d])\\2([a-f\\d])\\3([a-f\\d])\\4([\\s;\\}])/i', array($this, '_compressHexColors_Callback'), $content);
-	}
-
-	/**
-	 * Callback Method for preg_replace_callback in _compressHexColors
-	 *
-	 * @param   array  $m  From preg_replace_callback
-	 *
-	 * @access private
-	 * @return replaced The shorten Hex Code
-	 */
-	private function _compressHexColors_Callback($m)
-	{
-		return (string) ($m[1] . '#' . strtolower($m[2] . $m[3] . $m[4]) . $m[5]);
-	}
-
-	/**
 	 * Group same consecutive and remove empty CSS @media rules
 	 *
 	 * @param   string  $content  Css Content
@@ -993,28 +1000,22 @@ abstract class Base
 	 */
 	private function _groupCssMediaRules($content)
 	{
+
 		$onlyPrintMedia = '';
 		$mixedMedia = '';
 		$lastFoundMedia = '';
 
-		// Add import rules always first (a bit risk with CSS specificity, but good for browser performance and @import dont work within media rules)
-		$atImportContents = '';
-		$regex = '/@import\s+(?:url\s*\(\s*[\'"]?|[\'"])([^"^\'^\s]+)(?:[\'"]?\s*\)|[\'"])\s*([\w\s\(\)\d\:,\-]*);/i';
-		preg_match_all($regex, $content, $matches);
-
-		if (!empty($matches[0]))
-		{
-			$atImportContents = implode("\n", $matches[0]) . "\n";
-		}
-
-		preg_match_all('/@media\s+(.*)\s?\{(.*)\}\s?\}/Uis', $content, $matches);
+		preg_match_all('/(.*)@media([\s+|\(])(.*)\s?\{(.*)\}\s?\}(.*)/Uis', $content, $matches);
 
 		if (!empty($matches[0]))
 		{
 			foreach ($matches[0] as $k => $v)
 			{
-				$media = trim($matches[1][$k]);
-				$styles = trim($matches[2][$k]);
+				// @TOOD: prepend $matches[1][$k] (css without @media before)
+				// @TOOD: append $matches[5][$k] (css without @media after)
+
+				$media = trim($matches[2][$k] . $matches[3][$k]);
+				$styles = trim($matches[4][$k]);
 
 				// Remove empty media rules
 				if (empty($styles))
@@ -1062,7 +1063,7 @@ abstract class Base
 			$content = $_tmp;
 		}
 
-		return $atImportContents . $content;
+		return $content;
 	}
 
 	/**
@@ -1567,7 +1568,7 @@ abstract class Base
 			$host = parse_url($path, PHP_URL_HOST);
 			$path = parse_url($path, PHP_URL_PATH);
 
-			// Remove double slashes and backslahses and convert all slashes and backslashes to DS
+			// Remove double slashes and backslahses and convert all slashes and backslashes to DIRECTORY_SEPARATOR
 			$path = preg_replace('#[/\\\\]+#', $ds, $path);
 			$path = $this->getRealPath($path);
 
