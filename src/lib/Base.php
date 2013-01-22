@@ -20,6 +20,8 @@ namespace JsCssChunker;
 
 define('JSCSSCHUNKER_COMPRESSOR_DIR', dirname(__FILE__) . DIRECTORY_SEPARATOR . 'compressor');
 
+require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'Request.php');
+
 // @TODO: js and css testcases
 
 /**
@@ -74,7 +76,7 @@ abstract class Base
 		// If false the files are only merged
 		'javascriptCompress' => false,
 
-		// 'recommended: YUICompressor (with java), JSMin (if java not available)'
+		// 'recommended: YUICompressor (with java), JSMin or GoogleClosureCompiler (if java not available)'
 		'javascriptCompressorClass' => 'JSMin',
 
 		// Full path of java - required for the yui compressor (in most cases only java is enough)
@@ -87,10 +89,24 @@ abstract class Base
 		'httpAuth' => false,
 
 		// Connection timeout in seconds to load files via url
-		'timeout' => 5
-	);
+		'timeout' => 5,
 
-	private $_loadMethod = '';
+		/*
+		 * URL to local path mapping to load contents faster from local filesystem
+		 *
+		 * Example:
+		 * array(
+		 *   '/htdocs/' => 'http://www.domain.tld/',
+		 *   '/vhosts/host/htdocs/directory/' => array(
+		 *   	'http://www.domain2.com/directory/',
+		 *   	'http://www.domain2.de/directory/',
+		 *   	'http://www.domain2.net/directory/'
+		 *   )
+		 * )
+		 *
+		 */
+		'url_to_local_map' => array()
+	);
 
 	protected $stylesheetFiles = array();
 
@@ -99,10 +115,6 @@ abstract class Base
 	private $_log   = array();
 
 	private $_error = array();
-
-	private $_phpSafeMode = false;
-
-	private $_phpOpenBasedir = false;
 
 	private $_stylesheetFileTree = array();
 
@@ -115,6 +127,8 @@ abstract class Base
 	protected $stylesheetBuffer = '';
 
 	protected $javascriptBuffer = '';
+
+	private $_request = null;
 
 	/**
 	 * Contructor Function for init class and set options
@@ -135,19 +149,9 @@ abstract class Base
 			}
 		}
 
-		$state = self::check();
-
-		if ($state == false)
-		{
-			throw new Exception('JsCssChunker - Check fail: CURL or file_get_contents with allow_url_fopen or fsockopen is needed');
-		}
-
-		// Check PHP settings
-		$safeMode = strtolower(ini_get('safe_mode'));
-		$this->_phpSafeMode = (($safeMode == '0' || $safeMode == 'off') ? false : true);
-		$this->_phpOpenBasedir = (ini_get('open_basedir') == '' ? false : true);
-
 		$this->validateOptions();
+
+		$this->_request = new Request($this);
 	}
 
 	/**
@@ -159,10 +163,21 @@ abstract class Base
 	{
 		return array(
 			'YUICompressor' => 'Recommended (if java is available), Compression: Best',
-			'JSMin' => 'Recommended (if no java available), Compression: Normal',
+			'GoogleClosureCompiler' => 'Recommended (if no java available), Compression: Best',
+			'JSMin' => 'Compression: Normal',
 			'JSMinPlus' => 'Compression: High, Error-sensitive',
-			'JavaScriptPacker' => 'Compression: High, Error-sensitive'
 		);
+	}
+
+	/**
+	 * Check can load files
+	 *
+	 * @access public
+	 * @return boolean Can chunk
+	 */
+	public function check()
+	{
+		return $this->_request->check();
 	}
 
 	/**
@@ -727,43 +742,106 @@ abstract class Base
 
 		$contents = array();
 
-		foreach ($this->javascriptFiles as $file => $attribs)
+		$compress = $this->getOption('javascriptCompress');
+		$compressorClass = $this->getOption('javascriptCompressorClass');
+
+		$httpAuth = isset($_SERVER['HTTP_AUTHORIZATION']) ? $_SERVER['HTTP_AUTHORIZATION'] : '';
+		$httpAuthType = isset($_SERVER['AUTH_TYPE']) ? $_SERVER['AUTH_TYPE'] : '';
+		$httpAuthUser = isset($_SERVER['PHP_AUTH_USER']) ? $_SERVER['PHP_AUTH_USER'] : '';
+		$isHttpAuth = (!empty($httpAuth) && !empty($httpAuthType) && !empty($httpAuthUser));
+
+		if (!$isHttpAuth && $compress && $compressorClass == 'GoogleClosureCompiler')
 		{
-			$filename = $this->getFullUrlFromBase($file);
-			$filename = $this->getRealPath($filename);
-			$this->_javascriptFileTree[$filename] = array();
+			$filesChunkOnce = array();
 
-			$content  = trim($this->getFileContents($filename));
-			$this->logFileSize($content, 'javascript', 'before');
-
-			if ($content != "")
+			foreach ($this->javascriptFiles as $file => $attribs)
 			{
-				if ($this->getOption('javascriptCompress'))
-				{
-					$content = $this->compressJavascript($content);
+				$filename = $this->getFullUrlFromBase($file);
+				$filename = $this->getRealPath($filename);
 
-					if ($_error = $this->getErrors())
-					{
-						$this->addLog('ERROR - ' . $_error);
-					}
-					else
-					{
-						$this->addLog('Javascript - Compressed content');
-
-						// Safe merge without compressor ??
-						$content = $content . ';';
-					}
-				}
-				else
+				if(preg_match('#^(http:\/\/|https:\/\/|\/\/)(localhost|127\.0\.0\.1)/#Ui', $filename))
 				{
-					// Safe merge without compressor ??
-					$content = $content . ';';
+					// If some file not public we cant combine the submit
+					$this->_javascriptFileTree = array();
+					$filesChunkOnce = array();
+					break;
 				}
 
-				$contents[$file] = $content;
+				$this->_javascriptFileTree[$filename] = array();
+				$filesChunkOnce[] = $filename;
 			}
 		}
 
+		if ($filesChunkOnce)
+		{
+			require_once JSCSSCHUNKER_COMPRESSOR_DIR . DIRECTORY_SEPARATOR . $compressorClass . '.php';
+			$_nsClass = __NAMESPACE__ . '\\Compressor\\' . $compressorClass;
+
+			ob_start();
+			ob_implicit_flush(false);
+
+			$_result = $_nsClass::minify('', $filesChunkOnce, true);
+
+			$errors = trim(ob_get_contents());
+			ob_end_clean();
+
+			if ($errors)
+			{
+				$this->addError('Javascript Compressor Error [' . $compressorClass . ']: ' . $errors);
+			}
+			elseif($_result && is_array($_result))
+			{
+				$_content = isset($_result['content']) ? $_result['content'] : '';
+				if ($_content != '')
+				{
+					$contents[] = $_content;
+					$this->logFileSize('', 'javascript', 'before', $_result['sizeBefore']);
+					$this->logFileSize('', 'javascript', 'after', $_result['sizeAfter']);
+				}
+				unset($_content); // Free memory
+			}
+		}
+		else
+		{
+			foreach ($this->javascriptFiles as $file => $attribs)
+			{
+				$filename = $this->getFullUrlFromBase($file);
+				$filename = $this->getRealPath($filename);
+				$this->_javascriptFileTree[$filename] = array();
+
+				$content = trim($this->getFileContents($filename));
+				$this->logFileSize($content, 'javascript', 'before');
+
+				if ($content != "")
+				{
+					if ($this->getOption('javascriptCompress'))
+					{
+						$content = $this->compressJavascript($content, $file);
+
+						if ($_error = $this->getErrors())
+						{
+							$this->addLog('ERROR - ' . $_error);
+						}
+						else
+						{
+							$this->addLog('Javascript - Compressed content: ' . $file);
+
+							// Safe merge without compressor ??
+							$content = $content . ';';
+						}
+					}
+					else
+					{
+						// Safe merge without compressor ??
+						$content = $content . ';';
+					}
+
+					$contents[$file] = $content;
+				}
+			}
+		}
+
+		$content = '';
 		if (!empty($contents))
 		{
 			$content = implode("\n\n", $contents);
@@ -909,6 +987,8 @@ abstract class Base
 
 		try
 		{
+			require_once JSCSSCHUNKER_COMPRESSOR_DIR . DIRECTORY_SEPARATOR . 'Exception.php';
+
 			$compressorClass = $this->getOption('stylesheetCompressorClass');
 			$_nsClass = __NAMESPACE__ . '\\Compressor\\' . $compressorClass;
 
@@ -1069,16 +1149,22 @@ abstract class Base
 	/**
 	 * Method to check if JavaScript code is already compressed
 	 *
-	 * @param   string  $jscode  Contents of the Javascript
+	 * @param   string  $jscode    Contents of the Javascript
+	 * @param   string  $filename  The Filename of the Javascript (optional)
 	 *
 	 * @access private
 	 * @return boolean
 	 */
-	private function isJavascriptCompressed($jscode='')
+	private function isJavascriptCompressed($jscode='', $filename='')
 	{
+		if ($filename && preg_match('#[\._-]min\.js$#Ui', $filename))
+		{
+			return true;
+		}
+
 		if ($jscode == '')
 		{
-			return false;
+			return true;
 		}
 
 		if (strpos($jscode, 'eval(function(p,a,c,k,e,d)') !== false)
@@ -1092,17 +1178,18 @@ abstract class Base
 	/**
 	 * Compress javascript with an compressor class
 	 *
-	 * @param   string  $content  Contents of the Javascript
+	 * @param   string  $content   Contents of the Javascript
+	 * @param   string  $filename  The Filename of the Javascript (optional)
 	 *
 	 * @access private
 	 * @return string Compressed Javascript content
 	 */
-	private function compressJavascript($content)
+	private function compressJavascript($content, $filename='')
 	{
 		if (!empty($content))
 		{
 			// A simple check of code its already compressed
-			if ($this->isJavascriptCompressed($content))
+			if ($this->isJavascriptCompressed($content, $filename))
 			{
 				return trim($content);
 			}
@@ -1142,12 +1229,11 @@ abstract class Base
 						case 'JSMinPlus':
 							$compressedContent = $_nsClass::minify($content);
 							break;
-						case 'JavaScriptPacker':
-							$packer = new $_nsClass($content);
-							$compressedContent = $packer->pack();
-							break;
 						case 'YUICompressor':
 							$compressedContent = $_nsClass::minify($content, array('javabin' => $this->getOption('javaBin', 'java'), 'type' => 'js'));
+							break;
+						case 'GoogleClosureCompiler':
+							$compressedContent = $_nsClass::minify($content);
 							break;
 						default:
 							$this->addError('Compressor not implemented: ' . $compressorClass);
@@ -1545,6 +1631,20 @@ abstract class Base
 	}
 
 	/**
+	 * Get the contents of specific file/url
+	 *
+	 * @param   string  $file  Absolute Path or Url to the file
+	 * @param   string  $post  Url Parameters if Url must be submit as POST request
+	 *
+	 * @access public
+	 * @return string Contents from File
+	 */
+	public function getFileContents($file, $post = null)
+	{
+		return $this->_request->getFileContents($file, $post);
+	}
+
+	/**
 	 * Strip and replace additional / or \ in a path
 	 * Removing relative dot notations also like the php realpath function
 	 *
@@ -1645,51 +1745,6 @@ abstract class Base
 		$path = $this->options['targetUrl'];
 
 		return $relative ? str_replace($this->getOption('baseHref'), '/', $path) : $rootUrl . $path;
-	}
-
-	/**
-	 * Check can load files
-	 *
-	 * @access public
-	 * @return boolean Can chunk
-	 */
-	public function check()
-	{
-		static $state;
-
-		if ($state == null || empty($this->_loadMethod))
-		{
-			$state = false;
-
-			@ini_set('allow_url_fopen', '1');
-			$allow_url_fopen = ini_get('allow_url_fopen');
-
-			if (function_exists('curl_init') && function_exists('curl_exec') && empty($this->_loadMethod))
-			{
-				$this->_loadMethod = 'CURL';
-			}
-
-			if (function_exists('file_get_contents') && $allow_url_fopen && empty($this->_loadMethod))
-			{
-				$this->_loadMethod = 'FILEGETCONTENTS';
-			}
-
-			if (function_exists('fsockopen') && empty($this->_loadMethod))
-			{
-				$connnection = @fsockopen($this->pageUrl, 80, $errno, $error, 4);
-				if ($connnection && @is_resource($connnection))
-				{
-					$this->_loadMethod = 'FSOCKOPEN';
-				}
-			}
-
-			if ($this->_loadMethod)
-			{
-				$state = true;
-			}
-		}
-
-		return $state;
 	}
 
 	/**
@@ -1818,264 +1873,6 @@ abstract class Base
 	}
 
 	/**
-	 * Get the contents of specific file/url
-	 *
-	 * @param   string  $file  Absolute Path or Url to the file
-	 *
-	 * @access protected
-	 * @return string Contents from File
-	 */
-	protected function getFileContents($file)
-	{
-		$content = '';
-		$timeout = $this->getOption('timeout');
-
-		@ini_set('default_socket_timeout', $timeout);
-
-		$origLoadMethod = $this->_loadMethod;
-
-		// Force file_get_contents if file exists on local filesystem
-		if (!preg_match('#^(http|https)://#Uis', $file) && file_exists($file) && is_readable($file))
-		{
-			$this->_loadMethod = 'FILEGETCONTENTS';
-		}
-
-		$authOptions = $this->getOption('httpAuth');
-		if ($authOptions)
-		{
-			$httpAuth = true;
-			$httpAuthType = isset($authOptions['type']) ? $authOptions['type'] : 'ANY';
-			$httpAuthUser = isset($authOptions['user']) ? $authOptions['user'] : '';
-			$httpAuthPass = isset($authOptions['pass']) ? $authOptions['pass'] : '';
-			$isHttpAuth = (!empty($httpAuth) && !empty($httpAuthType) && !empty($httpAuthUser));
-		}
-		else
-		{
-			// If logged in currently with http auth add options into headers
-			$httpAuth = @$_SERVER['HTTP_AUTHORIZATION'];
-			$httpAuthType = @$_SERVER['AUTH_TYPE'];
-			$httpAuthUser = @$_SERVER['PHP_AUTH_USER'];
-			$httpAuthPass = @$_SERVER['PHP_AUTH_PW'];
-			$isHttpAuth = (!empty($httpAuth) && !empty($httpAuthType) && !empty($httpAuthUser));
-		}
-
-		switch ($this->_loadMethod)
-		{
-			case 'FILEGETCONTENTS':
-				$content = @file_get_contents($file);
-				break;
-
-			case 'FSOCKOPEN':
-				$errno = 0;
-				$errstr = '';
-
-				$uri = parse_url($file);
-				$fileHost = @$uri['host'];
-				$filePath = @$uri['path'];
-
-				$fp = @fsockopen($fileHost, 80, $errno, $errstr, $timeout);
-
-				if ($fp && $fileHost && $filePath)
-				{
-					@fputs($fp, "GET /" . $filePath . " HTTP/1.1\r\n");
-					@fputs($fp, "HOST: " . $fileHost . "\r\n");
-					if ($isHttpAuth)
-					{
-						@fputs($fp, "Authorization: " . trim($httpAuth) . "\r\n");
-					}
-					@fputs($fp, "User-Agent: Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1) Gecko/20061010 Firefox/2.0\r\n");
-					@fputs($fp, "Connection: close\r\n\r\n");
-					@stream_set_timeout($fp, $timeout);
-					@stream_set_blocking($fp, 1);
-
-					$response = '';
-					while (!@feof($fp))
-					{
-						$response .= @fgets($fp);
-					}
-					fclose($fp);
-
-					if ($response)
-					{
-						// Split headers from content
-						$response = explode("\r\n\r\n", $response);
-
-						// Remove headers from response
-						$headers = array_shift($response);
-
-						// Get contents only as string
-						$content = trim(implode("\r\n\r\n", $response));
-					}
-				}
-				else
-				{
-					$this->addError('fsockopen - Error on load file - ' . $file);
-				}
-				break;
-
-			case 'CURL':
-				$ch = @curl_init();
-				if ($ch)
-				{
-					curl_setopt($ch, CURLOPT_HEADER, 0);
-					curl_setopt($ch, CURLOPT_FAILONERROR, 1);
-					curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-					curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
-					curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $timeout);
-					curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
-					curl_setopt($ch, CURLOPT_URL, $file);
-
-					// Do not verify the SSL certificate
-					curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
-					curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-
-					if ($isHttpAuth)
-					{
-						$_type = strtoupper($httpAuthType);
-
-						switch ($_type)
-						{
-							case 'NTLM':
-								curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_NTLM);
-								break;
-							case 'GSSNEGOTIATE':
-								curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_GSSNEGOTIATE);
-								break;
-							case 'DIGEST':
-								curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_DIGEST);
-								break;
-							default:
-							case 'BASIC':
-								curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
-							break;
-						}
-
-						curl_setopt($ch, CURLOPT_USERPWD, $httpAuthUser . ':' . $httpAuthPass);
-					}
-
-					if ($this->_phpSafeMode || $this->_phpOpenBasedir)
-					{
-						// Follow location/redirect does not work if safe_mode enabled or open_basedir is set
-						curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 0);
-						$data = $this->curlExecFollow($ch);
-					}
-					else
-					{
-						curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
-						$data = curl_exec($ch);
-					}
-
-					$info = curl_getinfo($ch);
-					$http_code = @$info['http_code'];
-
-					if ($http_code == '200')
-					{
-						$content = $data;
-					}
-					else
-					{
-						$this->addError('cURL - Error load file (http-code: ' . $http_code . ') - ' . $file);
-					}
-
-					if (curl_errno($ch))
-					{
-						$this->addError('cURL - Error: ' . curl_error($ch) . ' - ' . $file);
-					}
-
-					curl_close($ch);
-				}
-				break;
-		}
-
-		$content = trim($content);
-
-		$this->_loadMethod = $origLoadMethod;
-
-		if (empty($content))
-		{
-			$this->addLog('Empty content: ' . $file);
-		}
-		else
-		{
-			$this->addLog('File contents loaded: ' . $file);
-		}
-
-		return $content;
-	}
-
-	/**
-	 * Wrapper for curl_exec when CURLOPT_FOLLOWLOCATION is not possible
-	 * {@link http://www.php.net/manual/de/function.curl-setopt.php#102121}
-	 *
-	 * @param   ressource  $ch            Curl Ressource
-	 * @param   integer    &$maxredirect  Maximum amount of redirects (defaults 5 or libcurl limit)
-	 *
-	 * @access protected
-	 * @return Contents of curl_exec
-	 */
-	protected function curlExecFollow($ch, &$maxredirect=null)
-	{
-		$mr = ($maxredirect === null ? 5 : (int) $maxredirect);
-
-		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
-		if ($mr > 0)
-		{
-			$newurl = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
-			$rch = curl_copy_handle($ch);
-
-			curl_setopt($rch, CURLOPT_HEADER, true);
-			curl_setopt($rch, CURLOPT_NOBODY, true);
-			curl_setopt($rch, CURLOPT_FORBID_REUSE, false);
-			curl_setopt($rch, CURLOPT_RETURNTRANSFER, true);
-
-			do
-			{
-				curl_setopt($rch, CURLOPT_URL, $newurl);
-				$header = curl_exec($rch);
-
-				if (curl_errno($rch))
-				{
-					$code = 0;
-				}
-				else
-				{
-					$code = curl_getinfo($rch, CURLINFO_HTTP_CODE);
-
-					if ($code == 301 || $code == 302)
-					{
-						preg_match('/Location:(.*?)\n/', $header, $matches);
-						$newurl = trim(array_pop($matches));
-					}
-					else
-					{
-						$code = 0;
-					}
-				}
-			}
-			while ($code && --$mr);
-
-			curl_close($rch);
-			if (!$mr)
-			{
-				if ($maxredirect === null)
-				{
-					trigger_error('Too many redirects. When following redirects, libcurl hit the maximum amount.', E_USER_WARNING);
-				}
-				else
-				{
-					$maxredirect = 0;
-				}
-
-				return false;
-			}
-
-			curl_setopt($ch, CURLOPT_URL, $newurl);
-		}
-
-		return curl_exec($ch);
-	}
-
-	/**
 	 * Method to extract key/value pairs with xml style attributes
 	 *
 	 * @param   string  $str  String with the xml style attributes
@@ -2106,11 +1903,12 @@ abstract class Base
 	 * @param   string  $str       Content to determine the size
 	 * @param   string  $type      Determine the Type of the Content (grouping like js or css)
 	 * @param   string  $timeline  Determine an upper group (like before or after)
+	 * @param   string  $_size     Submit filesize (optional, else it will be detected from $str)
 	 *
 	 * @access protected
 	 * @return mixed Size of Chunked contents (multibyte if available or strlen)
 	 */
-	protected function logFileSize($str, $type, $timeline)
+	protected function logFileSize($str, $type, $timeline, $_size = null)
 	{
 		if (!$this->getOption('logFilesize', false))
 		{
@@ -2125,16 +1923,23 @@ abstract class Base
 			);
 		}
 
-		if (function_exists('mb_strlen'))
+		if ($_size === null)
 		{
-			// Multibyte, if possible
-			$_multibyte = true;
-			$_size = mb_strlen($str);
+			if (function_exists('mb_strlen'))
+			{
+				// Multibyte, if possible
+				$_multibyte = true;
+				$_size = mb_strlen($str);
+			}
+			else
+			{
+				$_multibyte = false;
+				$_size = strlen($str);
+			}
 		}
 		else
 		{
-			$_multibyte = false;
-			$_size = strlen($str);
+			$_multibyte = true;
 		}
 
 		if ($_size)
@@ -2271,3 +2076,5 @@ abstract class Base
 	}
 	*/
 }
+
+class Exception extends \Exception {}
