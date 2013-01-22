@@ -306,7 +306,7 @@ class CSSmin
 			{
 				$this->preserved_tokens[] = '\\';
 				$css = preg_replace($placeholder, self::TOKEN . (count($this->preserved_tokens) - 1) . '___', $css, 1);
-				$i = $i + 1; /* attn: advancing the loop */
+				++$i; /* attn: advancing the loop */
 				$this->preserved_tokens[] = '';
 				$css = preg_replace('/' . self::COMMENT . $i . '___/', self::TOKEN . (count($this->preserved_tokens) - 1) . '___', $css, 1);
 				continue;
@@ -752,11 +752,18 @@ class CSSmin
 	{
 		$vh = $vh < 0 ? $vh + 1 : ($vh > 1 ? $vh - 1 : $vh);
 		if ($vh * 6 < 1)
+		{
 			return $v1 + ($v2 - $v1) * 6 * $vh;
+		}
 		if ($vh * 2 < 1)
+		{
 			return $v2;
+		}
 		if ($vh * 3 < 2)
+		{
 			return $v1 + ($v2 - $v1) * ((2 / 3) - $vh) * 6;
+		}
+
 		return $v1;
 	}
 

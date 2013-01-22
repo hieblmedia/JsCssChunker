@@ -39,7 +39,7 @@ class Request
 	/**
 	 * Contructor Function for init class
 	 *
-	 * @param   object  $chunker  JsCssChunker/Base
+	 * @param   object  &$chunker  JsCssChunker/Base
 	 */
 	public function __construct(&$chunker)
 	{
@@ -407,7 +407,6 @@ class Request
 		return curl_exec($ch);
 	}
 
-
 	/**
 	 * Check can load files
 	 *
@@ -452,5 +451,4 @@ class Request
 
 		return $state;
 	}
-
 }

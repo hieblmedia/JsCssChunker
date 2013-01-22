@@ -56,7 +56,7 @@ class GoogleClosureCompiler
 			$post = http_build_query($post) . '&output_info=compiled_code';
 			if ($withStats)
 			{
-				$post .= '&output_info=statistics';;
+				$post .= '&output_info=statistics';
 			}
 
 			if ($content)
@@ -116,13 +116,11 @@ class GoogleClosureCompiler
 			}
 
 		}
-		unset($content); // Free memory
+		unset($content); /* Free memory */
 
 		if ($withStats)
 		{
-			return array_merge(array(
-				'content' => $minifiedContent
-			), $statistics);
+			return array_merge(array('content' => $minifiedContent), $statistics);
 		}
 
 		return $minifiedContent;

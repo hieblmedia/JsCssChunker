@@ -18,4 +18,13 @@
 
 namespace JsCssChunker\Compressor;
 
-class Exception extends \Exception {}
+/**
+ * Exception Fallback
+ *
+ * @package  JsCssChunker
+ * @since    0.0.2
+ */
+class Exception extends \Exception
+{
+
+}

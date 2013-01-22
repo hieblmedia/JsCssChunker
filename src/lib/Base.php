@@ -20,7 +20,7 @@ namespace JsCssChunker;
 
 define('JSCSSCHUNKER_COMPRESSOR_DIR', dirname(__FILE__) . DIRECTORY_SEPARATOR . 'compressor');
 
-require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'Request.php');
+require_once dirname(__FILE__) . DIRECTORY_SEPARATOR . 'Request.php';
 
 // @TODO: js and css testcases
 
@@ -759,7 +759,7 @@ abstract class Base
 				$filename = $this->getFullUrlFromBase($file);
 				$filename = $this->getRealPath($filename);
 
-				if(preg_match('#^(http:\/\/|https:\/\/|\/\/)(localhost|127\.0\.0\.1)/#Ui', $filename))
+				if (preg_match('#^(http:\/\/|https:\/\/|\/\/)(localhost|127\.0\.0\.1)/#Ui', $filename))
 				{
 					// If some file not public we cant combine the submit
 					$this->_javascriptFileTree = array();
@@ -798,7 +798,7 @@ abstract class Base
 					$this->logFileSize('', 'javascript', 'before', $_result['sizeBefore']);
 					$this->logFileSize('', 'javascript', 'after', $_result['sizeAfter']);
 				}
-				unset($_content); // Free memory
+				unset($_content); /* Free memory */
 			}
 		}
 		else
@@ -2077,4 +2077,13 @@ abstract class Base
 	*/
 }
 
-class Exception extends \Exception {}
+/**
+ * Exception Fallback
+ *
+ * @package  JsCssChunker
+ * @since    0.0.2
+ */
+class Exception extends \Exception
+{
+
+}
