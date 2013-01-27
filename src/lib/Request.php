@@ -177,7 +177,22 @@ class Request
 				}
 				else
 				{
-					$content = @file_get_contents($file);
+					if (!$httpAuth)
+					{
+						$content = @file_get_contents($file);
+					}
+					else
+					{
+						$opts = array(
+							'http' => array(
+								'method'  => 'GET',
+								'header'  => 'Authorization: ' . $httpAuth,
+							)
+						);
+
+						$_context  = @stream_context_create($opts);
+						$content = @file_get_contents($file, false, $_context);
+					}
 				}
 				break;
 
