@@ -975,7 +975,7 @@ abstract class Base
 	 * Compress Stylesheet contents
 	 * (Note: Some rules are inspired from the YUI-CSS-Compressor)
 	 *
-	 * @param   string  $content  Stylesheet content
+	 * @param   string  $content   Stylesheet content
 	 * @param   string  $filename  The Filename of the Javascript (optional)
 	 *
 	 * @access private
@@ -1163,14 +1163,14 @@ abstract class Base
 	 * @access private
 	 * @return boolean
 	 */
-	private function isStylesheetCompressed($csscode='', $filename='')
+	private function isStylesheetCompressed($cssCode='', $filename='')
 	{
 		if ($filename && preg_match('#[\._-]min\.css$#Ui', $filename))
 		{
 			return true;
 		}
 
-		if ($csscode == '')
+		if ($cssCode == '')
 		{
 			return true;
 		}
@@ -1387,6 +1387,11 @@ abstract class Base
 		}
 
 		$loadeFiles[] = $filename;
+
+		if ($this->isStylesheetCompressed($content, $file))
+		{
+			return $content;
+		}
 
 		// Is important to remove comments before search @import rules
 		$content = $this->stripStylesheetComments($content);
