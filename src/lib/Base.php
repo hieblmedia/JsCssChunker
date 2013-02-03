@@ -888,20 +888,20 @@ abstract class Base
 			$cont = $this->_loadStylesheets($file, $this->_stylesheetFileTree);
 			$cont = $this->_checkCssMedia($cont, $media);
 
+			// Remove all charset definitions (important!)
+			$cont = $this->_removeCssCharset($cont);
+			$this->addLog('Stylesheet - remove all @charset rules for browser compatibility: ' . $file);
+
+			if ($this->getOption('stylesheetCompress'))
+			{
+				$cont = $this->compressStylesheet($cont, $file);
+				$this->addLog('Stylesheet - Compressed content: ' . $file);
+			}
+
 			$contents[$file] = $cont;
 		}
 
 		$content = implode("\n\n", $contents);
-
-		// Remove all charset definitions (important!)
-		$content = $this->_removeCssCharset($content);
-		$this->addLog('Stylesheet - remove all @charset rules for browser compatibility');
-
-		if ($this->getOption('stylesheetCompress'))
-		{
-			$content = $this->compressStylesheet($content);
-			$this->addLog('Stylesheet - Compressed content');
-		}
 
 		// Special rules should be always first
 		$toTheTopRules = array(
@@ -940,12 +940,6 @@ abstract class Base
 			$this->addLog('Stylesheet - Set @charset (' . $charset . ') in first line');
 		}
 
-		if ($this->getOption('removeEmptyLines'))
-		{
-			$content = $this->removeEmptyLines($content);
-			$this->addLog('Stylesheet - Removed empty lines');
-		}
-
 		if ($protocolRelative = $this->getOption('protocolRelative'))
 		{
 			if ($protocolRelative === 'forceHTTPS')
@@ -961,12 +955,17 @@ abstract class Base
 			}
 		}
 
-		// New line for each @media rule
-		$content = str_replace('@media', "\n@media", $content);
+		// New line for each @media, @font-face and @import rule
+		$content = preg_replace('#@(media|font\-face|import)#', "\n@\\1", $content);
+
+		if ($this->getOption('removeEmptyLines'))
+		{
+			$content = $this->removeEmptyLines($content);
+			$this->addLog('Stylesheet - Removed empty lines');
+		}
 
 		$this->stylesheetBuffer = $content;
 		$this->logFileSize($content, 'stylesheet', 'after');
-
 		$this->addLog('Stylesheet - Merge complete');
 
 		return $this;
@@ -977,13 +976,22 @@ abstract class Base
 	 * (Note: Some rules are inspired from the YUI-CSS-Compressor)
 	 *
 	 * @param   string  $content  Stylesheet content
+	 * @param   string  $filename  The Filename of the Javascript (optional)
 	 *
 	 * @access private
 	 * @return string compressed Stylesheet content
 	 */
-	private function compressStylesheet($content)
+	private function compressStylesheet($content, $filename = '')
 	{
 		$compressedContent = '';
+
+		// A simple check of code its already compressed
+		if ($this->isStylesheetCompressed($content, $filename))
+		{
+			// Simple check to remove extra spaces
+			$content = preg_replace('/\s\s+/', ' ', $content);
+			return trim($content);
+		}
 
 		try
 		{
@@ -1144,6 +1152,30 @@ abstract class Base
 		}
 
 		return $content;
+	}
+
+	/**
+	 * Method to check if CSS code is already compressed
+	 *
+	 * @param   string  $cssCode   Contents of the Javascript
+	 * @param   string  $filename  The Filename of the Javascript (optional)
+	 *
+	 * @access private
+	 * @return boolean
+	 */
+	private function isStylesheetCompressed($csscode='', $filename='')
+	{
+		if ($filename && preg_match('#[\._-]min\.css$#Ui', $filename))
+		{
+			return true;
+		}
+
+		if ($csscode == '')
+		{
+			return true;
+		}
+
+		return false;
 	}
 
 	/**
