@@ -11,12 +11,14 @@
  * @package    JsCssChunker
  *
  * @author     Reinhard Hiebl <reinhard@hieblmedia.com>
- * @copyright  Copyright (C) 2011 - 2012, HieblMedia (Reinhard Hiebl)
+ * @copyright  Copyright (C) 2011 - 2014, HieblMedia (Reinhard Hiebl)
  * @license    http://www.opensource.org/licenses/gpl-3.0.html GNU General Public License, version 3.0 (GPLv3)
  * @link       http://chunker.hieblmedia.net/
  */
 
 namespace JsCssChunker\Compressor;
+
+use JsCssChunker\Request;
 
 /**
  * GoogleClosureCompiler (non java version)
@@ -29,9 +31,9 @@ class GoogleClosureCompiler
 	/**
 	 * Method to minify/compress {@link self->_string}
 	 *
-	 * @param   string   $content    String to compress
-	 * @param   array    $urls       Array of urls to compress (The urls must be public)
-	 * @param   boolean  $withStats  Determine to return an object with content including statistics.
+	 * @param   string  $content   String to compress
+	 * @param   array   $urls      Array of urls to compress (The urls must be public)
+	 * @param   boolean $withStats Determine to return an object with content including statistics.
 	 *
 	 * @access public
 	 * @static
@@ -46,7 +48,7 @@ class GoogleClosureCompiler
 
 		if ($content || count($urls))
 		{
-			$request = \JsCssChunker\Request::getInstance();
+			$request = Request::getInstance();
 
 			$post = array(
 				'output_format' => 'json',

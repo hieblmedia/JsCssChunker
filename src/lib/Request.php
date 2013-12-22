@@ -11,7 +11,7 @@
  * @package    JsCssChunker
  *
  * @author     Reinhard Hiebl <reinhard@hieblmedia.com>
- * @copyright  Copyright (C) 2011 - 2012, HieblMedia (Reinhard Hiebl)
+ * @copyright  Copyright (C) 2011 - 2014, HieblMedia (Reinhard Hiebl)
  * @license    http://www.opensource.org/licenses/gpl-3.0.html GNU General Public License, version 3.0 (GPLv3)
  * @link       http://chunker.hieblmedia.net/
  */
@@ -32,6 +32,9 @@ class Request
 
 	private $_loadMethod = '';
 
+	/**
+	 * @var \JsCssChunker
+	 */
 	private $_chunker = null;
 
 	static private $_instance = null;
@@ -39,7 +42,9 @@ class Request
 	/**
 	 * Contructor Function for init class
 	 *
-	 * @param   object  &$chunker  JsCssChunker/Base
+	 * @throws Exception Throws an expecption if the check method fails
+	 *
+	 * @param   object &$chunker JsCssChunker/Base
 	 */
 	public function __construct(&$chunker)
 	{
@@ -48,7 +53,7 @@ class Request
 		$this->_phpSafeMode = (($safeMode == '0' || $safeMode == 'off') ? false : true);
 		$this->_phpOpenBasedir = (ini_get('open_basedir') == '' ? false : true);
 
-		$this->_chunker = &$chunker;
+		$this->_chunker = & $chunker;
 
 		if ($this->check() == false)
 		{
@@ -56,6 +61,7 @@ class Request
 		}
 
 		self::$_instance = $this;
+
 		return self::$_instance;
 	}
 
@@ -63,7 +69,7 @@ class Request
 	 * Get the Request Instance
 	 *
 	 * @static
-	 * @return JsCssChunker/Request
+	 * @return \JsCssChunker
 	 */
 	public static function getInstance()
 	{
@@ -73,9 +79,9 @@ class Request
 	/**
 	 * Get the contents of specific file/url
 	 *
-	 * @param   string   $file     Absolute Path or Url to the file
-	 * @param   string   $post     Url Parameters if Url must be submit as POST request
-	 * @param   integer  $timeout  Timeout in seconds, if not set the default will be used.
+	 * @param   string  $file    Absolute Path or Url to the file
+	 * @param   string  $post    Url Parameters if Url must be submit as POST request
+	 * @param   integer $timeout Timeout in seconds, if not set the default will be used.
 	 *
 	 * @access public
 	 * @return string Contents from File
@@ -117,6 +123,7 @@ class Request
 			$timeout = $this->_chunker->getOption('timeout');
 		}
 
+		/** @noinspection PhpUsageOfSilenceOperatorInspection */
 		@ini_set('default_socket_timeout', $timeout);
 
 		$origLoadMethod = $this->_loadMethod;
@@ -166,31 +173,36 @@ class Request
 				{
 					$opts = array(
 						'http' => array(
-							'method'  => 'POST',
-							'header'  => 'Content-type: application/x-www-form-urlencoded',
+							'method' => 'POST',
+							'header' => 'Content-type: application/x-www-form-urlencoded',
 							'content' => $postdata
 						)
 					);
 
-					$_context  = @stream_context_create($opts);
+					/** @noinspection PhpUsageOfSilenceOperatorInspection */
+					$_context = @stream_context_create($opts);
+					/** @noinspection PhpUsageOfSilenceOperatorInspection */
 					$content = @file_get_contents($file, false, $_context);
 				}
 				else
 				{
 					if (!$httpAuth)
 					{
+						/** @noinspection PhpUsageOfSilenceOperatorInspection */
 						$content = @file_get_contents($file);
 					}
 					else
 					{
 						$opts = array(
 							'http' => array(
-								'method'  => 'GET',
-								'header'  => 'Authorization: ' . $httpAuth,
+								'method' => 'GET',
+								'header' => 'Authorization: ' . $httpAuth,
 							)
 						);
 
-						$_context  = @stream_context_create($opts);
+						/** @noinspection PhpUsageOfSilenceOperatorInspection */
+						$_context = @stream_context_create($opts);
+						/** @noinspection PhpUsageOfSilenceOperatorInspection */
 						$content = @file_get_contents($file, false, $_context);
 					}
 				}
@@ -201,33 +213,46 @@ class Request
 				$errstr = '';
 
 				$uri = parse_url($file);
+				/** @noinspection PhpUsageOfSilenceOperatorInspection */
 				$fileHost = @$uri['host'];
+				/** @noinspection PhpUsageOfSilenceOperatorInspection */
 				$filePath = @$uri['path'];
 
+				/** @noinspection PhpUsageOfSilenceOperatorInspection */
 				$fp = @fsockopen($fileHost, 80, $errno, $errstr, $timeout);
 
 				if ($fp && $fileHost && $filePath)
 				{
 					$_method = (($postdata === null) ? 'GET' : 'POST');
 
+					/** @noinspection PhpUsageOfSilenceOperatorInspection */
 					@fputs($fp, $_method . " /" . $filePath . " HTTP/1.1\r\n");
+					/** @noinspection PhpUsageOfSilenceOperatorInspection */
 					@fputs($fp, "HOST: " . $fileHost . "\r\n");
 					if ($isHttpAuth)
 					{
+						/** @noinspection PhpUsageOfSilenceOperatorInspection */
 						@fputs($fp, "Authorization: " . trim($httpAuth) . "\r\n");
 					}
+					/** @noinspection PhpUsageOfSilenceOperatorInspection */
 					@fputs($fp, "User-Agent: Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1) Gecko/20061010 Firefox/2.0\r\n");
+					/** @noinspection PhpUsageOfSilenceOperatorInspection */
 					@fputs($fp, "Connection: close\r\n\r\n");
 					if ($_method == 'POST')
 					{
+						/** @noinspection PhpUsageOfSilenceOperatorInspection */
 						@fputs($fp, $postdata);
 					}
+					/** @noinspection PhpUsageOfSilenceOperatorInspection */
 					@stream_set_timeout($fp, $timeout);
+					/** @noinspection PhpUsageOfSilenceOperatorInspection */
 					@stream_set_blocking($fp, 1);
 
 					$response = '';
+					/** @noinspection PhpUsageOfSilenceOperatorInspection */
 					while (!@feof($fp))
 					{
+						/** @noinspection PhpUsageOfSilenceOperatorInspection */
 						$response .= @fgets($fp);
 					}
 					fclose($fp);
@@ -238,7 +263,7 @@ class Request
 						$response = explode("\r\n\r\n", $response);
 
 						// Remove headers from response
-						$headers = array_shift($response);
+						array_shift($response);
 
 						// Get contents only as string
 						$content = trim(implode("\r\n\r\n", $response));
@@ -251,6 +276,7 @@ class Request
 				break;
 
 			case 'CURL':
+				/** @noinspection PhpUsageOfSilenceOperatorInspection */
 				$ch = @curl_init();
 				if ($ch)
 				{
@@ -313,6 +339,7 @@ class Request
 					}
 
 					$info = curl_getinfo($ch);
+					/** @noinspection PhpUsageOfSilenceOperatorInspection */
 					$http_code = @$info['http_code'];
 
 					if ($http_code == '200')
@@ -354,13 +381,12 @@ class Request
 	 * Wrapper for curl_exec when CURLOPT_FOLLOWLOCATION is not possible
 	 * {@link http://www.php.net/manual/de/function.curl-setopt.php#102121}
 	 *
-	 * @param   ressource  $ch            Curl Ressource
-	 * @param   integer    &$maxredirect  Maximum amount of redirects (defaults 5 or libcurl limit)
+	 * @param resource $ch          Curl Ressource
+	 * @param null     $maxredirect Maximum amount of redirects (defaults 5 or libcurl limit)
 	 *
-	 * @access protected
-	 * @return Contents of curl_exec
+	 * @return string Contents of curl_exec
 	 */
-	protected function curlExecFollow($ch, &$maxredirect=null)
+	protected function curlExecFollow($ch, &$maxredirect = null)
 	{
 		$mr = ($maxredirect === null ? 5 : (int) $maxredirect);
 
@@ -398,8 +424,7 @@ class Request
 						$code = 0;
 					}
 				}
-			}
-			while ($code && --$mr);
+			} while ($code && --$mr);
 
 			curl_close($rch);
 			if (!$mr)
@@ -436,6 +461,7 @@ class Request
 		{
 			$state = false;
 
+			/** @noinspection PhpUsageOfSilenceOperatorInspection */
 			@ini_set('allow_url_fopen', '1');
 			$allow_url_fopen = ini_get('allow_url_fopen');
 
@@ -451,7 +477,9 @@ class Request
 
 			if (function_exists('fsockopen') && empty($this->_loadMethod))
 			{
+				/** @noinspection PhpUsageOfSilenceOperatorInspection */
 				$connnection = @fsockopen('127.0.0.1', 80, $errno, $error, 4);
+				/** @noinspection PhpUsageOfSilenceOperatorInspection */
 				if ($connnection && @is_resource($connnection))
 				{
 					$this->_loadMethod = 'FSOCKOPEN';

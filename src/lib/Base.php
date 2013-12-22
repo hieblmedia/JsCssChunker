@@ -11,7 +11,7 @@
  * @package    JsCssChunker
  *
  * @author     Reinhard Hiebl <reinhard@hieblmedia.com>
- * @copyright  Copyright (C) 2011 - 2012, HieblMedia (Reinhard Hiebl)
+ * @copyright  Copyright (C) 2011 - 2014, HieblMedia (Reinhard Hiebl)
  * @license    http://www.opensource.org/licenses/gpl-3.0.html GNU General Public License, version 3.0 (GPLv3)
  * @link       http://chunker.hieblmedia.net/
  */
@@ -44,25 +44,18 @@ abstract class Base
 
 		// The base href, will be replaced when using parseRawHeader method and base metatag is found. Leave empty for auto-autodetection
 		'baseHref' => '',
-
 		// An alternative target Url (relative or absolute), e.g. for a CDN. Leave empty for auto-autodetection
 		'targetUrl' => '',
-
 		// If true all empty lines will be removed (only affected when compressors are disabled)
 		'removeEmptyLines' => true,
-
 		// If false @import rules will be ignored
 		'stylesheetRecursiv' => true,
-
 		// UTF-8 is highly recommended
 		'stylesheetCharset' => 'UTF-8',
-
 		// If false the files are only merged
 		'stylesheetCompress' => true,
-
 		// Currently only CSSMin is available (CSSMin is based as port of the YUI CSS Compressor)
 		'stylesheetCompressorClass' => 'CSSMin',
-
 		/*
 		 * Protocol-Relative URL - like url(//domain.tld/path/file.ext)
 		 *
@@ -75,22 +68,16 @@ abstract class Base
 
 		// If false the files are only merged
 		'javascriptCompress' => false,
-
 		// 'recommended: YUICompressor (with java), JSMin or GoogleClosureCompiler (if java not available)'
 		'javascriptCompressorClass' => 'JSMin',
-
 		// Full path of java - required for the yui compressor (in most cases only java is enough)
 		'javaBin' => 'java',
-
 		// Log file sizes for statistics
 		'logFilesize' => false,
-
 		// E.g. array('type' => 'BASIC', 'user' => 'username', 'pass' => 'password)
 		'httpAuth' => false,
-
 		// Connection timeout in seconds to load files via url
 		'timeout' => 5,
-
 		/*
 		 * URL to local path mapping to load contents faster from local filesystem
 		 *
@@ -112,7 +99,7 @@ abstract class Base
 
 	protected $javascriptFiles = array();
 
-	private $_log   = array();
+	private $_log = array();
 
 	private $_error = array();
 
@@ -130,13 +117,15 @@ abstract class Base
 
 	private $_request = null;
 
+	private $pathscope = '';
+
 	/**
 	 * Contructor Function for init class and set options
 	 *
-	 * @param   string  $pageUrl  The Full page URL
-	 * @param   array   $options  Options {@link self->options}
+	 * @param   string $pageUrl The Full page URL
+	 * @param   array  $options Options {@link self->options}
 	 */
-	public function __construct($pageUrl, $options=array())
+	public function __construct($pageUrl, $options = array())
 	{
 		$this->pageUrl = $pageUrl;
 		$this->rootUrl = parse_url($pageUrl, PHP_URL_SCHEME) . '://' . parse_url($pageUrl, PHP_URL_HOST);
@@ -183,16 +172,16 @@ abstract class Base
 	/**
 	 * Method to parse the <head /> from the HTML document
 	 *
-	 * @param   string   $parseMode  Determine where parse the files (head, body, all, defaults head)
-	 * @param   boolean  $autoApply  Automaticly add all founded js and css files to the queue
-	 * @param   string   $forceHtml  Optional HTML Content to Parse (leave empty to use the pageUrl Contents)
-	 * @param   boolean  $parseJs    Find and parse Javascript (default true)
-	 * @param   boolean  $parseCss   Find and parse Stylesheet (default true)
+	 * @param   string  $parseMode Determine where parse the files (head, body, all, defaults head)
+	 * @param   boolean $autoApply Automaticly add all founded js and css files to the queue
+	 * @param   string  $forceHtml Optional HTML Content to Parse (leave empty to use the pageUrl Contents)
+	 * @param   boolean $parseJs   Find and parse Javascript (default true)
+	 * @param   boolean $parseCss  Find and parse Stylesheet (default true)
 	 *
 	 * @access public
 	 * @return array CSS and JS file list
 	 */
-	public function parseRawHeader($parseMode='head', $autoApply=false, $forceHtml='', $parseJs = true, $parseCss = true)
+	public function parseRawHeader($parseMode = 'head', $autoApply = false, $forceHtml = '', $parseJs = true, $parseCss = true)
 	{
 		static $_html;
 
@@ -230,7 +219,7 @@ abstract class Base
 					{
 						if (substr($baseHref, -1, 1) == '/')
 						{
-							$baseHref = $baseHref;
+							#$baseHref = $baseHref;
 						}
 						else
 						{
@@ -280,8 +269,6 @@ abstract class Base
 			'js' => array()
 		);
 
-		$_contents = '';
-
 		if (empty($parseMode))
 		{
 			$parseMode = 'head';
@@ -297,7 +284,6 @@ abstract class Base
 			default:
 			case 'head':
 			case 'body':
-				$headData = '';
 				$matches = array();
 
 				preg_match('#<' . $parseMode . '.*>(.*)</' . $parseMode . '>#Uis', $html, $matches);
@@ -410,10 +396,10 @@ abstract class Base
 	/**
 	 * Get the the contents with minified Javscript and Stylesheet links are submitted on parseRawHeader
 	 *
-	 * @param   string  $versionSuffix  URL Suffix, e.g. version number or filetime for enhanced browser cache detection
+	 * @param   string $versionSuffix URL Suffix, e.g. version number or filetime for enhanced browser cache detection
 	 *
 	 * @access public
-	 * @return The prepared contents submitted on parseRawHeader
+	 * @return string The prepared contents submitted on parseRawHeader
 	 */
 	public function getPreparedRawData($versionSuffix = '')
 	{
@@ -447,7 +433,7 @@ abstract class Base
 
 			if ($protocolRelative === 'forceHTTPS')
 			{
-				$protocolRelative = preg_replace('/http:\/\//i', 'https://', $protocolRelative);
+				$url = preg_replace('/http:\/\//i', 'https://', $url);
 			}
 			elseif ($protocolRelative)
 			{
@@ -466,13 +452,13 @@ abstract class Base
 	/**
 	 * Get a specific option in class
 	 *
-	 * @param   string  $key  Option name
-	 * @param   mixed   $def  Default value if $key not set
+	 * @param   string $key Option name
+	 * @param   mixed  $def Default value if $key not set
 	 *
 	 * @access public
 	 * @return mixed The option value
 	 */
-	public function getOption($key, $def=null)
+	public function getOption($key, $def = null)
 	{
 		return (isset($this->options[$key]) ? $this->options[$key] : $def);
 	}
@@ -480,8 +466,8 @@ abstract class Base
 	/**
 	 * Set a specific option in class
 	 *
-	 * @param   string  $key    Option name
-	 * @param   mixed   $value  Value to set for option $key
+	 * @param   string $key   Option name
+	 * @param   mixed  $value Value to set for option $key
 	 *
 	 * @access public
 	 * @return self
@@ -490,6 +476,7 @@ abstract class Base
 	{
 		$this->options[$key] = $value;
 		$this->validateOptions();
+
 		return $this;
 	}
 
@@ -566,14 +553,14 @@ abstract class Base
 	/**
 	 * Method to add a Stylesheet file to parse
 	 *
-	 * @param   string  $file   Filename (relative or absolute)
-	 * @param   string  $type   Type (defaults: text/css)
-	 * @param   string  $media  Media (defaults: all)
+	 * @param   string $file  Filename (relative or absolute)
+	 * @param   string $type  Type (defaults: text/css)
+	 * @param   string $media Media (defaults: all)
 	 *
 	 * @access public
 	 * @return self
 	 */
-	public function addStylesheet($file, $type='text/css', $media='all')
+	public function addStylesheet($file, $type = 'text/css', $media = 'all')
 	{
 		// Remove url params
 		$tmp = explode('?', $file);
@@ -592,13 +579,13 @@ abstract class Base
 	/**
 	 * Method to add a Javascript file to parse
 	 *
-	 * @param   string  $file  Filename (relative or absolute)
-	 * @param   string  $type  Type (defaults: text/javascript)
+	 * @param   string $file Filename (relative or absolute)
+	 * @param   string $type Type (defaults: text/javascript)
 	 *
 	 * @access public
 	 * @return self
 	 */
-	public function addJavascript($file, $type='text/javascript')
+	public function addJavascript($file, $type = 'text/javascript')
 	{
 		// Remove url params
 		$tmp = explode('?', $file);
@@ -617,14 +604,14 @@ abstract class Base
 	/**
 	 * Method to get a Hash value of processing stylesheets (e.g. for caching)
 	 *
-	 * @param   boolean  $includeDomain  If true the the PageUrl Domain included in the Cache Hash.
+	 * @param   boolean $includeDomain   If true the the PageUrl Domain included in the Cache Hash.
 	 *                                   This is Useful for an multi-domain system with one cache folder.
 	 *                                   (defaults: false)
 	 *
 	 * @access public
 	 * @return mixed Hash value or false on fail
 	 */
-	public function getStylesheetHash($includeDomain=false)
+	public function getStylesheetHash($includeDomain = false)
 	{
 		if (!empty($this->stylesheetFiles))
 		{
@@ -642,8 +629,8 @@ abstract class Base
 			);
 			$prefix = serialize($prefixArr);
 
-			$hash   = serialize($this->stylesheetFiles);
-			$hash   = md5($prefix) . '_' . md5($hash);
+			$hash = serialize($this->stylesheetFiles);
+			$hash = md5($prefix) . '_' . md5($hash);
 
 			return $hash;
 		}
@@ -656,14 +643,14 @@ abstract class Base
 	/**
 	 * Method to get a Hash value of processing javascripts (e.g. for caching)
 	 *
-	 * @param   boolean  $includeDomain  If true the the PageUrl Domain included in the Cache Hash.
-	 *                        					 This is Useful for an multi-domain system with one cache folder.
-	 *                         					 (defaults: false)
+	 * @param   boolean $includeDomain             If true the the PageUrl Domain included in the Cache Hash.
+	 *                                             This is Useful for an multi-domain system with one cache folder.
+	 *                                             (defaults: false)
 	 *
 	 * @access public
 	 * @return mixed Hash value or false on fail
 	 */
-	public function getJavascriptHash($includeDomain=false)
+	public function getJavascriptHash($includeDomain = false)
 	{
 		if (!empty($this->javascriptFiles))
 		{
@@ -681,7 +668,7 @@ abstract class Base
 			$prefix = serialize($prefixArr);
 
 			$hash = serialize($this->javascriptFiles);
-			$hash   = md5($prefix) . '_' . md5($hash);
+			$hash = md5($prefix) . '_' . md5($hash);
 
 			return $hash;
 		}
@@ -704,11 +691,13 @@ abstract class Base
 		$savePath = $this->getTargetUrlSavePath();
 		if ($savePath)
 		{
-			$this->addLog("\n"
+			$this->addLog(
+				"\n"
 				. '!! Important !!: The Stylesheet must be callable from this path:'
 				. "\n\t\t\t -- Folder: " . $savePath
 				. "\n\t\t\t -- File (e.g.): " . $savePath . $this->getStylesheetHash() . '.css'
-				. "\n");
+				. "\n"
+			);
 		}
 
 		return $this->stylesheetBuffer;
@@ -750,10 +739,9 @@ abstract class Base
 		$httpAuthUser = isset($_SERVER['PHP_AUTH_USER']) ? $_SERVER['PHP_AUTH_USER'] : '';
 		$isHttpAuth = (!empty($httpAuth) && !empty($httpAuthType) && !empty($httpAuthUser));
 
+		$filesChunkOnce = array();
 		if (!$isHttpAuth && $compress && $compressorClass == 'GoogleClosureCompiler')
 		{
-			$filesChunkOnce = array();
-
 			foreach ($this->javascriptFiles as $file => $attribs)
 			{
 				$filename = $this->getFullUrlFromBase($file);
@@ -772,14 +760,16 @@ abstract class Base
 			}
 		}
 
-		if ($filesChunkOnce)
+		if (!empty($filesChunkOnce))
 		{
+			/** @noinspection PhpIncludeInspection */
 			require_once JSCSSCHUNKER_COMPRESSOR_DIR . DIRECTORY_SEPARATOR . $compressorClass . '.php';
 			$_nsClass = __NAMESPACE__ . '\\Compressor\\' . $compressorClass;
 
 			ob_start();
 			ob_implicit_flush(false);
 
+			/** @noinspection PhpUndefinedMethodInspection */
 			$_result = $_nsClass::minify('', $filesChunkOnce, true);
 
 			$errors = trim(ob_get_contents());
@@ -789,7 +779,7 @@ abstract class Base
 			{
 				$this->addError('Javascript Compressor Error [' . $compressorClass . ']: ' . $errors);
 			}
-			elseif($_result && is_array($_result))
+			elseif ($_result && is_array($_result))
 			{
 				$_content = isset($_result['content']) ? $_result['content'] : '';
 				if ($_content != '')
@@ -907,7 +897,6 @@ abstract class Base
 		$toTheTopRules = array(
 			// @font-face: Good for browser performance, compatibility and reduce flickering
 			'/@font-face\s*{(.*)}/Uis',
-
 			// @import rules: Is a bit risk with CSS specificity, but good for browser performance, compatibility
 			'/@import\s+(?:url\s*\(\s*[\'"]?|[\'"])([^"^\'^\s]+)(?:[\'"]?\s*\)|[\'"])\s*([\w\s\(\)\d\:,\-]*);/i'
 		);
@@ -975,8 +964,8 @@ abstract class Base
 	 * Compress Stylesheet contents
 	 * (Note: Some rules are inspired from the YUI-CSS-Compressor)
 	 *
-	 * @param   string  $content   Stylesheet content
-	 * @param   string  $filename  The Filename of the Javascript (optional)
+	 * @param   string $content  Stylesheet content
+	 * @param   string $filename The Filename of the Javascript (optional)
 	 *
 	 * @access private
 	 * @return string compressed Stylesheet content
@@ -990,14 +979,17 @@ abstract class Base
 		{
 			// Simple check to remove extra spaces
 			$content = preg_replace('/\s\s+/', ' ', $content);
+
 			return trim($content);
 		}
 
+		$compressorClass = $this->getOption('stylesheetCompressorClass');
+
 		try
 		{
+			/** @noinspection PhpIncludeInspection */
 			require_once JSCSSCHUNKER_COMPRESSOR_DIR . DIRECTORY_SEPARATOR . 'Exception.php';
 
-			$compressorClass = $this->getOption('stylesheetCompressorClass');
 			$_nsClass = __NAMESPACE__ . '\\Compressor\\' . $compressorClass;
 
 			if (!class_exists($_nsClass))
@@ -1006,6 +998,7 @@ abstract class Base
 
 				if (file_exists($compressorFile))
 				{
+					/** @noinspection PhpIncludeInspection */
 					require_once $compressorFile;
 				}
 				else
@@ -1023,11 +1016,12 @@ abstract class Base
 				{
 					case 'CSSMin':
 						$compressor = new $_nsClass;
+						/** @noinspection PhpUndefinedMethodInspection */
 						$compressedContent = $compressor->run($content);
 						break;
 					default:
 						$this->addError('Compressor not implemented: ' . $compressorClass);
-					break;
+						break;
 				}
 
 				$errors = trim(ob_get_contents());
@@ -1042,8 +1036,7 @@ abstract class Base
 			{
 				$this->addError('Compressor Class [' . $compressorClass . '] not found or not callable: ' . $compressorClass);
 			}
-		}
-		catch (Exception $e)
+		} catch (Exception $e)
 		{
 			$msg = "/* \n * --- ERROR (Stylesheet-Compressor [" . $compressorClass . "]) --- \n * Message: " . $e->getMessage() . "\n */ \n\n";
 			$compressedContent = $msg . $content;
@@ -1056,12 +1049,12 @@ abstract class Base
 	/**
 	 * Strip Stylesheet Comments (consider css hacks)
 	 *
-	 * @param   string  $content  Contents of Stylesheet/CSS
+	 * @param   string $content Contents of Stylesheet/CSS
 	 *
 	 * @access protected
 	 * @return string with striped CSS comments
 	 */
-	protected function stripStylesheetComments($content='')
+	protected function stripStylesheetComments($content = '')
 	{
 		// -- Handle hacks before --
 
@@ -1081,11 +1074,12 @@ abstract class Base
 	/**
 	 * Group same consecutive and remove empty CSS @media rules
 	 *
-	 * @param   string  $content  Css Content
+	 * @param   string $content Css Content
 	 *
 	 * @access private
 	 * @return string Replaced Css Content
 	 */
+	/*
 	private function _groupCssMediaRules($content)
 	{
 
@@ -1153,17 +1147,18 @@ abstract class Base
 
 		return $content;
 	}
+	*/
 
 	/**
 	 * Method to check if CSS code is already compressed
 	 *
-	 * @param   string  $cssCode   Contents of the Javascript
-	 * @param   string  $filename  The Filename of the Javascript (optional)
+	 * @param   string $cssCode  Contents of the Javascript
+	 * @param   string $filename The Filename of the Javascript (optional)
 	 *
 	 * @access private
 	 * @return boolean
 	 */
-	private function isStylesheetCompressed($cssCode='', $filename='')
+	private function isStylesheetCompressed($cssCode = '', $filename = '')
 	{
 		if ($filename && preg_match('#[\._-]min\.css$#Ui', $filename))
 		{
@@ -1181,13 +1176,13 @@ abstract class Base
 	/**
 	 * Method to check if JavaScript code is already compressed
 	 *
-	 * @param   string  $jscode    Contents of the Javascript
-	 * @param   string  $filename  The Filename of the Javascript (optional)
+	 * @param   string $jscode   Contents of the Javascript
+	 * @param   string $filename The Filename of the Javascript (optional)
 	 *
 	 * @access private
 	 * @return boolean
 	 */
-	private function isJavascriptCompressed($jscode='', $filename='')
+	private function isJavascriptCompressed($jscode = '', $filename = '')
 	{
 		if ($filename && preg_match('#[\._-]min\.js$#Ui', $filename))
 		{
@@ -1210,13 +1205,13 @@ abstract class Base
 	/**
 	 * Compress javascript with an compressor class
 	 *
-	 * @param   string  $content   Contents of the Javascript
-	 * @param   string  $filename  The Filename of the Javascript (optional)
+	 * @param   string $content  Contents of the Javascript
+	 * @param   string $filename The Filename of the Javascript (optional)
 	 *
 	 * @access private
 	 * @return string Compressed Javascript content
 	 */
-	private function compressJavascript($content, $filename='')
+	private function compressJavascript($content, $filename = '')
 	{
 		if (!empty($content))
 		{
@@ -1228,10 +1223,10 @@ abstract class Base
 
 			$compressedContent = '';
 			$sizeBefore = function_exists('mb_strlen') ? mb_strlen($content) : strlen($content);
+			$compressorClass = $this->getOption('javascriptCompressorClass');
 
 			try
 			{
-				$compressorClass = $this->getOption('javascriptCompressorClass');
 				$_nsClass = __NAMESPACE__ . '\\Compressor\\' . $compressorClass;
 
 				if (!class_exists($_nsClass))
@@ -1240,6 +1235,7 @@ abstract class Base
 
 					if (file_exists($compressorFile))
 					{
+						/** @noinspection PhpIncludeInspection */
 						require_once $compressorFile;
 					}
 					else
@@ -1256,20 +1252,29 @@ abstract class Base
 					switch ($compressorClass)
 					{
 						case 'JSMin':
+							/** @noinspection PhpUndefinedMethodInspection */
 							$compressedContent = $_nsClass::minify($content);
 							break;
 						case 'JSMinPlus':
+							/** @noinspection PhpUndefinedMethodInspection */
 							$compressedContent = $_nsClass::minify($content);
 							break;
 						case 'YUICompressor':
-							$compressedContent = $_nsClass::minify($content, array('javabin' => $this->getOption('javaBin', 'java'), 'type' => 'js'));
+							/** @noinspection PhpUndefinedMethodInspection */
+							$compressedContent = $_nsClass::minify(
+								$content, array(
+									'javabin' => $this->getOption('javaBin', 'java'),
+									'type' => 'js'
+								)
+							);
 							break;
 						case 'GoogleClosureCompiler':
+							/** @noinspection PhpUndefinedMethodInspection */
 							$compressedContent = $_nsClass::minify($content);
 							break;
 						default:
 							$this->addError('Compressor not implemented: ' . $compressorClass);
-						break;
+							break;
 					}
 
 					$errors = trim(ob_get_contents());
@@ -1284,8 +1289,7 @@ abstract class Base
 				{
 					$this->addError('Compressor Class [' . $compressorClass . '] not found or not callable: ' . $compressorClass);
 				}
-			}
-			catch (Exception $e)
+			} catch (Exception $e)
 			{
 				$msg = "/* \n * --- ERROR (Javascript-Compressor [" . $compressorClass . "]) --- \n * Message: " . $e->getMessage() . "\n */ \n\n";
 				$content = $msg . $content;
@@ -1312,12 +1316,12 @@ abstract class Base
 	/**
 	 * Determine the full url of a file
 	 *
-	 * @param   string  $url  Relative or Absolute URL
+	 * @param   string $url Relative or Absolute URL
 	 *
 	 * @access protected
 	 * @return string Full aboslute URL
 	 */
-	protected function getFullUrlFromBase($url='')
+	protected function getFullUrlFromBase($url = '')
 	{
 		$scheme = parse_url($url, PHP_URL_SCHEME);
 		$host = parse_url($url, PHP_URL_HOST);
@@ -1342,7 +1346,7 @@ abstract class Base
 	/**
 	 * Remove empty lines in a string
 	 *
-	 * @param   string  $string  The string of content
+	 * @param   string $string The string of content
 	 *
 	 * @access public
 	 * @return string without empty lines
@@ -1356,13 +1360,13 @@ abstract class Base
 	 * Method to load Stylesheets recursivly with @import rule
 	 * and replacemnt for included path
 	 *
-	 * @param   string  $file       Path to file to load
-	 * @param   array   &$fileTree  Tree of all files (referenced)
+	 * @param   string $file      Path to file to load
+	 * @param   array  &$fileTree Tree of all files (referenced)
 	 *
 	 * @access private
 	 * @return string Merged content
 	 */
-	private function _loadStylesheets($file, &$fileTree=array())
+	private function _loadStylesheets($file, &$fileTree = array())
 	{
 		static $loadeFiles = array();
 
@@ -1417,8 +1421,8 @@ abstract class Base
 				$importPath = $this->getRealpath($importPath);
 
 				// $fileTree[$importPath] = array();
+				// $relpath = dirname($relfile);
 
-				$relpath = dirname($relfile);
 				$icont = $this->_loadStylesheets($importPath, $fileTree[$filename]);
 				$icont = trim($icont);
 
@@ -1481,10 +1485,10 @@ abstract class Base
 	/**
 	 * Method to remove all CSS charset definitions
 	 *
-	 * @param   string  $content  CSS content
+	 * @param   string $content CSS content
 	 *
 	 * @access private
-	 * @return CSS content without charset definitions
+	 * @return string CSS content without charset definitions
 	 */
 	private function _removeCssCharset($content = '')
 	{
@@ -1494,13 +1498,13 @@ abstract class Base
 	/**
 	 * Check @media type is definied in CSS file and add it if its not found
 	 *
-	 * @param   string  $content  CSS content
-	 * @param   string  $media    Mediatype for css rules, default all
+	 * @param   string $content CSS content
+	 * @param   string $media   Mediatype for css rules, default all
 	 *
 	 * @access private
 	 * @return string $content return content of file with @media rule
 	 */
-	private function _checkCssMedia($content, $media='all')
+	private function _checkCssMedia($content, $media = 'all')
 	{
 		if ($content && strpos($content, '@media') === false)
 		{
@@ -1513,8 +1517,8 @@ abstract class Base
 	/**
 	 * Method to replace url paths in css rules in merged content
 	 *
-	 * @param   string  $content  CSS content
-	 * @param   string  $path     Path of file to replace
+	 * @param   string $content CSS content
+	 * @param   string $path    Path of file to replace
 	 *
 	 * @access protected
 	 * @return string $content return content with replaced url([new_path])
@@ -1554,7 +1558,7 @@ abstract class Base
 		// Replace and shortend urls with pathscop
 		$regex = '/([,:].*)url\(([\'"]?)(?![a-z]+:)([^\'")]+)[\'"]?\)/Ui'; // only relative urls (and without data:)
 
-		$content = preg_replace_callback($regex, array( &$this, '_replaceCSSPaths_Callback'), $content);
+		$content = preg_replace_callback($regex, array(&$this, '_replaceCSSPaths_Callback'), $content);
 		$content = str_replace('[[CALLBACK_URLREPLACED]]', 'url', $content);
 
 		// Revert @import
@@ -1575,10 +1579,10 @@ abstract class Base
 	/**
 	 * Callback Method for preg_replace_callback in _replaceCSSPaths
 	 *
-	 * @param   array  $matches  From preg_replace_callback
+	 * @param   array $matches From preg_replace_callback
 	 *
 	 * @access private
-	 * @return replaced path prepend with $this->pathscope
+	 * @return string replaced path prepend with $this->pathscope
 	 */
 	private function _replaceCSSPaths_Callback($matches)
 	{
@@ -1605,7 +1609,7 @@ abstract class Base
 			$targetUrlArr = explode('/', $targetUrl);
 
 			$tmpArr = array();
-			foreach ($targetUrlArr as $k => $v)
+			foreach ($targetUrlArr as $v)
 			{
 				if ($v != '')
 				{
@@ -1617,7 +1621,7 @@ abstract class Base
 			$baseHrefArr = explode('/', $this->options['baseHref']);
 
 			$tmpArr = array();
-			foreach ($baseHrefArr as $k => $v)
+			foreach ($baseHrefArr as $v)
 			{
 				if ($v != '')
 				{
@@ -1670,8 +1674,8 @@ abstract class Base
 	/**
 	 * Get the contents of specific file/url
 	 *
-	 * @param   string  $file  Absolute Path or Url to the file
-	 * @param   string  $post  Url Parameters if Url must be submit as POST request
+	 * @param   string $file Absolute Path or Url to the file
+	 * @param   string $post Url Parameters if Url must be submit as POST request
 	 *
 	 * @access public
 	 * @return string Contents from File
@@ -1685,18 +1689,18 @@ abstract class Base
 	 * Strip and replace additional / or \ in a path
 	 * Removing relative dot notations also like the php realpath function
 	 *
-	 * @param   string  $path  Path
-	 * @param   string  $ds    Directory seperator
+	 * @param   string $path Path
+	 * @param   string $ds   Directory seperator
 	 *
 	 * @access public
-	 * @return The clean path
+	 * @return string The clean path
 	 */
-	public function cleanPath($path='', $ds='/')
+	public function cleanPath($path = '', $ds = '/')
 	{
 		$path = trim($path);
 		if (empty($path))
 		{
-			return;
+			return $path;
 		}
 
 		if (!empty($path))
@@ -1721,17 +1725,17 @@ abstract class Base
 	/**
 	 * Like Relpath function but without check filesystem and does not create an absolute path is relative
 	 *
-	 * @param   string  $path  Relative path like "path1/./path2/../../file.png" or external like "http://domain.tld/path1/../path2/file.png"
+	 * @param   string $path Relative path like "path1/./path2/../../file.png" or external like "http://domain.tld/path1/../path2/file.png"
 	 *
 	 * @access private
 	 * @return string $path shortend path
 	 */
-	private function getRealpath($path='')
+	private function getRealpath($path = '')
 	{
 		$path = trim($path);
 		if (empty($path))
 		{
-			return;
+			return $path;
 		}
 
 		$scheme = parse_url($path, PHP_URL_SCHEME);
@@ -1771,12 +1775,12 @@ abstract class Base
 	/**
 	 * Get the absolute URL Path where the stylesheet must be callable
 	 *
-	 * @param   boolean  $relative  If true only the path will be returned
+	 * @param   boolean $relative If true only the path will be returned
 	 *
 	 * @access public
 	 * @return string Absolute URL save path
 	 */
-	public function getTargetUrlSavePath($relative=false)
+	public function getTargetUrlSavePath($relative = false)
 	{
 		$rootUrl = $this->rootTargetUrl ? $this->rootTargetUrl : $this->rootUrl;
 		$path = $this->options['targetUrl'];
@@ -1787,14 +1791,14 @@ abstract class Base
 	/**
 	 * Check directores based on a compared file of modifications
 	 *
-	 * @param   array   $dirs         Absolute directory paths on local filesystem
-	 * @param   string  $compareFile  Filename to compare with $dirs
-	 * @param   string  $filter       preg_match filter for files (defaults [.css|.js]$)
+	 * @param   array  $dirs        Absolute directory paths on local filesystem
+	 * @param   string $compareFile Filename to compare with $dirs
+	 * @param   string $filter      preg_match filter for files (defaults [.css|.js]$)
 	 *
 	 * @access public
 	 * @return mixed (timestamp)Filetime or (bool)false on fail
 	 */
-	public function hasFoldersModifications($dirs, $compareFile, $filter='[.css|.js]$')
+	public function hasFoldersModifications($dirs, $compareFile, $filter = '[.css|.js]$')
 	{
 		if (!is_array($dirs))
 		{
@@ -1816,6 +1820,7 @@ abstract class Base
 		if ($lastModified)
 		{
 			$compareFile = $this->cleanPath($compareFile);
+			/** @noinspection PhpUsageOfSilenceOperatorInspection */
 			$filetime = @filemtime($compareFile);
 
 			if ($filetime && $lastModified > $filetime)
@@ -1830,13 +1835,13 @@ abstract class Base
 	/**
 	 * Get LastModified File by local path(dir)
 	 *
-	 * @param   string  $path    Absolute directory path on local filesystem
-	 * @param   string  $filter  preg_match filter for files (defaults [.css|.js]$)
+	 * @param   string $path   Absolute directory path on local filesystem
+	 * @param   string $filter preg_match filter for files (defaults [.css|.js]$)
 	 *
 	 * @access public
 	 * @return mixed (timestamp)Filetime or (bool)false on fail
 	 */
-	public function getLastModifiedFileByFolder($path, $filter='[.css|.js]$')
+	public function getLastModifiedFileByFolder($path, $filter = '[.css|.js]$')
 	{
 		// Workaround to fix the path (double-slash, dot-notation, etc.)
 		$path = dirname($this->cleanPath($path) . '/.');
@@ -1853,18 +1858,20 @@ abstract class Base
 		{
 			// Check the directory when no files was found in path
 			// not supported on all filesystems but much enough as fallback too
+			/** @noinspection PhpUsageOfSilenceOperatorInspection */
 			$filetime = @filemtime($path);
 		}
 		else
 		{
 			array_multisort(
-			array_map('filemtime', $files),
-			SORT_NUMERIC,
-			SORT_DESC, // Newest first, or `SORT_ASC` for oldest first
-			$files
+				array_map('filemtime', $files),
+				SORT_NUMERIC,
+				SORT_DESC, // Newest first, or `SORT_ASC` for oldest first
+				$files
 			);
 
-			$file     = array_shift($files);
+			$file = array_shift($files);
+			/** @noinspection PhpUsageOfSilenceOperatorInspection */
 			$filetime = @filemtime($file);
 		}
 
@@ -1874,18 +1881,15 @@ abstract class Base
 	/**
 	 * Helper function to search files recursiv by path with an specific filter
 	 *
-	 * @param   string  $path    Absolute directory path on local filesystem
-	 * @param   string  $filter  preg_match filter for files (defaults [.css|.js]$)
+	 * @param   string $path   Absolute directory path on local filesystem
+	 * @param   string $filter preg_match filter for files (defaults [.css|.js]$)
 	 *
 	 * @access private
 	 * @return array List of files.
 	 */
-	private static function _filesRecursiv($path, $filter='[.css|.js]$')
+	private static function _filesRecursiv($path, $filter = '[.css|.js]$')
 	{
 		$arr = array();
-
-		$findfiles = false;
-
 		$handle = opendir($path);
 
 		while (($file = readdir($handle)) !== false)
@@ -1912,7 +1916,7 @@ abstract class Base
 	/**
 	 * Method to extract key/value pairs with xml style attributes
 	 *
-	 * @param   string  $str  String with the xml style attributes
+	 * @param   string $str String with the xml style attributes
 	 *
 	 * @access private
 	 * @return array Array of extracted Key/Value pairs
@@ -1937,10 +1941,10 @@ abstract class Base
 	/**
 	 * Log File sizes, if enabled
 	 *
-	 * @param   string  $str       Content to determine the size
-	 * @param   string  $type      Determine the Type of the Content (grouping like js or css)
-	 * @param   string  $timeline  Determine an upper group (like before or after)
-	 * @param   string  $_size     Submit filesize (optional, else it will be detected from $str)
+	 * @param   string $str      Content to determine the size
+	 * @param   string $type     Determine the Type of the Content (grouping like js or css)
+	 * @param   string $timeline Determine an upper group (like before or after)
+	 * @param   string $_size    Submit filesize (optional, else it will be detected from $str)
 	 *
 	 * @access protected
 	 * @return mixed Size of Chunked contents (multibyte if available or strlen)
@@ -1949,7 +1953,7 @@ abstract class Base
 	{
 		if (!$this->getOption('logFilesize', false))
 		{
-			return;
+			return null;
 		}
 
 		if ($this->sizeLog == false)
@@ -2001,7 +2005,7 @@ abstract class Base
 	/**
 	 * Add an log message
 	 *
-	 * @param   string  $msg  Message
+	 * @param   string $msg Message
 	 *
 	 * @access public
 	 * @return self
@@ -2009,21 +2013,20 @@ abstract class Base
 	public function addLog($msg)
 	{
 		array_push($this->_log, $msg);
+
 		return $this;
 	}
 
 	/**
 	 * Get log messages
 	 *
-	 * @param   boolean  $mostRecent  Most recent or all messages
+	 * @param   boolean $mostRecent Most recent or all messages
 	 *
 	 * @access public
 	 * @return array or string of Log Entrie(s)
 	 */
-	public function getLogs($mostRecent=true)
+	public function getLogs($mostRecent = true)
 	{
-		$log = false;
-
 		if ($mostRecent)
 		{
 			$log = end($this->_log);
@@ -2039,7 +2042,7 @@ abstract class Base
 	/**
 	 * Add an error message
 	 *
-	 * @param   string  $msg  Message
+	 * @param   string $msg Message
 	 *
 	 * @access public
 	 * @return self
@@ -2047,21 +2050,20 @@ abstract class Base
 	public function addError($msg)
 	{
 		array_push($this->_error, $msg);
+
 		return $this;
 	}
 
 	/**
 	 * Get error messages
 	 *
-	 * @param   boolean  $mostRecent  Most recent or all messages
+	 * @param   boolean $mostRecent Most recent or all messages
 	 *
 	 * @access public
 	 * @return array or string of Error(s)
 	 */
-	public function getErrors($mostRecent=true)
+	public function getErrors($mostRecent = true)
 	{
-		$error = false;
-
 		if ($mostRecent)
 		{
 			$error = end($this->_error);
@@ -2100,7 +2102,7 @@ abstract class Base
 	 * Get Object properties (e.g. to store in database or something else)
 	 *
 	 * @access public
-	 * @return get_object_vars()
+	 * @return array
 	 */
 	public function getProperties()
 	{

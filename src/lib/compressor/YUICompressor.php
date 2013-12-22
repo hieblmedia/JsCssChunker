@@ -11,7 +11,7 @@
  * @package    JsCssChunker
  *
  * @author     Reinhard Hiebl <reinhard@hieblmedia.com>
- * @copyright  Copyright (C) 2011 - 2012, HieblMedia (Reinhard Hiebl)
+ * @copyright  Copyright (C) 2011 - 2014, HieblMedia (Reinhard Hiebl)
  * @license    http://www.opensource.org/licenses/gpl-3.0.html GNU General Public License, version 3.0 (GPLv3)
  * @link       http://chunker.hieblmedia.net/
  */
@@ -28,12 +28,10 @@ class YUICompressor
 {
 	private $_options = array(
 		'javabin' => 'java',
-								// Most common fullpath windows > 'javabin' => 'C:\\Program Files\\Java\\jre6\\bin\\java.exe',
-								// Most common fullpath unix    > 'javabin' => '/usr/bin/java',
+		// Most common fullpath windows > 'javabin' => 'C:\\Program Files\\Java\\jre6\\bin\\java.exe',
+		// Most common fullpath unix    > 'javabin' => '/usr/bin/java',
 		'jarpath' => null,
-
 		'type' => 'js',
-
 		'line-break' => false,
 		'nomunge' => false,
 		'preserve-semi' => false,
@@ -49,10 +47,10 @@ class YUICompressor
 	/**
 	 * Contructor Function for init class and set options
 	 *
-	 * @param   string  $content  String to compress
-	 * @param   array   $options  Options {@link self->_options}
+	 * @param   string $content String to compress
+	 * @param   array  $options Options {@link self->_options}
 	 */
-	public function __construct($content, $options=array())
+	public function __construct($content, $options = array())
 	{
 		$this->_string = $content;
 
@@ -68,20 +66,24 @@ class YUICompressor
 	/**
 	 * Method to minify/compress {@link self->_string}
 	 *
-	 * @param   string  $content  String to compress
-	 * @param   array   $options  Options {@link self->_options}
+	 * @param   string $content String to compress
+	 * @param   array  $options Options {@link self->_options}
 	 *
 	 * @access public
 	 * @static
 	 * @return string Compressed String on success, Un-Compressed String on error
 	 */
-	public static function minify($content, $options=array())
+	public static function minify($content, $options = array())
 	{
 		$klass = __CLASS__;
 		$instance = new $klass($content, $options);
 
-		$minifiedContent = $instance->compress();
+		/** @noinspection PhpUndefinedMethodInspection */
+		$instance->compress();
+		/** @noinspection PhpUndefinedMethodInspection */
 		$instance->cleanUp();
+
+		/** @noinspection PhpUndefinedMethodInspection */
 
 		return $instance->getStringCompressed();
 	}
@@ -111,8 +113,8 @@ class YUICompressor
 	/**
 	 * Get a specific option in class
 	 *
-	 * @param   string  $k    Option name
-	 * @param   mixed   $def  Default value if $key not set
+	 * @param   string $k   Option name
+	 * @param   mixed  $def Default value if $key not set
 	 *
 	 * @access protected
 	 * @return mixed The option value
@@ -127,6 +129,7 @@ class YUICompressor
 	 *
 	 * @access private
 	 * @return string Compressed String on success, Un-Compressed String on error
+	 * @throws \RuntimeException
 	 */
 	private function compress()
 	{
@@ -164,11 +167,15 @@ class YUICompressor
 
 		$arguments = array(
 			$javabin,
-			'-jar', $jarpath,
-			'-o', $outputfile,
+			'-jar',
+			$jarpath,
+			'-o',
+			$outputfile,
 			$inputfile,
-		'--type', (strtolower($type) == 'css' ? 'css' : 'js'),
-		'--charset', 'UTF-8'
+			'--type',
+			(strtolower($type) == 'css' ? 'css' : 'js'),
+			'--charset',
+			'UTF-8'
 		);
 
 		if (false !== ($linebreak = $this->getOption('line-break', false)))
@@ -236,6 +243,8 @@ class YUICompressor
 				stream_set_blocking($pipe, false);
 			}
 
+			$stdinLen = null;
+			$stdinOffset = null;
 			if (null === $stdin)
 			{
 				fclose($pipes[0]);
@@ -255,6 +264,7 @@ class YUICompressor
 				$w = $writePipes;
 				$e = null;
 
+				/** @noinspection PhpUsageOfSilenceOperatorInspection */
 				$n = @stream_select($r, $w, $e, $timeout);
 
 				if (false === $n)
@@ -318,14 +328,10 @@ class YUICompressor
 				$status = proc_get_status($process);
 			}
 
-			$exitcode = proc_close($process);
-
 			if ($status['signaled'])
 			{
 				throw new \RuntimeException(sprintf('YUICompressor: The process stopped because of a "%s" signal.', $status['stopsig']));
 			}
-
-			$exitcode = $status['running'] ? $exitcode : $status['exitcode'];
 
 			if (!empty($stderr))
 			{
